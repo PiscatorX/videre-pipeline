@@ -34,7 +34,6 @@ process fastqc_RawReads{
 }
 
 
-
 process multiqc_RawReads{
     //echo true
     publishDir path: "$output/RawReadsQC/multiqc", mode: 'copy'
@@ -58,16 +57,19 @@ process multiqc_RawReads{
 }
 
 
+
 process trimmomatic{
 
     //echo true
-    publishDir path: "$output/trimmoQC", mode: 'copy'
+    publishDir path: "$output/TrimmoReads", mode: 'copy'
    
     input:
 	set pair_id, file(reads) from read_pair2
 
     output:
-	file("${pair_id}_trim*") into trimmedreads
+    file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
+    set  val(pair_id), file('*_1P.fastq'), file('*_2P.fastq') into TrimmedReads1,
+                                                                   TrimmedReads2	
    
     script:
 	(fwd,rev)=reads
@@ -75,7 +77,7 @@ process trimmomatic{
 	
 """
      
-    trimmomatic PE  $fwd $rev -baseout ${pair_id}_trimmer.fastq -phred33 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
+    trimmomatic PE  $fwd $rev -baseout ${pair_id}_trim.fastq -phred33 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
    
      
 """
@@ -91,34 +93,72 @@ process trimmomatic{
 
 
 
-// process fastqc_RawReads{
-//     echo true
-//     publishDir path: output, mode: 'copy'
-	
-//     input:
-// 	set pair_id, file(reads) from read_pair1
 
-//     output:
-// 	file("raw_reads/$pair_id") into fastqc_results
-    
-// """
+
+process fastqc_TrimmReads{
+    //echo true
+    publishDir path: output, mode: 'copy'
+	
+    input:
+	set pair_id, file(fwd), file(rev) from TrimmedReads1
+
+    output:
+     	file("TrimmoReadsQC/$pair_id") into fastqc_results2
+
+	
+"""
    
-//    mkdir -pv raw_reads/$pair_id
-//    fastqc --extract -f fastq  -o raw_reads/$pair_id  -t 1  *q
-//    fastqc_combine.pl -v -o raw_reads/$pair_id --skip --files "raw_reads/$pair_id/*_fastqc"
-//    multiqc raw_reads/$pair_id
-// """
-// }
+   mkdir -pv TrimmoReadsQC/$pair_id
+   fastqc --extract -f fastq  -o TrimmoReadsQC/$pair_id -t 1  *fastq
+   
+"""
+
+}
 
 
+process multiqc_TrimmReads{
+    //echo true
+    publishDir path: "$output/TrimmoReadsQC/multiqc", mode: 'copy'
+    input:
+        file("TrimmoReadsQC/*") from fastqc_results2.collect()
 
-// process {
- 
-//     echo true
-//     publishDir path: "$output/trimmoQC", mode: 'copy'
+    output:
+    	file("multiqc_report.html") into MQC_report2
+    	file("multiqc_data") into MQC_data2
+    	file("TrimmoReadsQC/*fastqc*")   into FSQ_results2   
+
 	
-//     input:
-// 	file() 
-	
+"""
 
-// }
+   mv  TrimmoReadsQC/*/*_fastqc*  TrimmoReadsQC
+   fastqc_combine.pl -v --out  TrimmoReadsQC --skip --files 'TrimmoReadsQC/*_fastqc'
+   multiqc TrimmoReadsQC
+        
+"""    
+
+}
+
+
+
+
+process megahit{
+    
+    echo true
+    publishDir path: "$output/MegaHit", mode: 'copy'
+    input:
+	set  pair_id, file(fwd), file(rev) from TrimmedReads2
+
+    output:
+       file("$pair_id") into megahitResults
+
+	
+"""
+
+    megahit -1 $fwd  -2 $rev  -m 0.75  -t 1  -o $pair_id  
+    ls -lt
+
+"""
+
+}
+
+
