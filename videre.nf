@@ -1,14 +1,17 @@
 #!/usr/bin/env nextflow
 
-params.reads = "$baseDir/data1/*_{1,2}.f*q"
+   //params.reads = "$baseDir/DataX/*_{1,2}.f*q"
+params.reads = "$baseDir/data/reads.{left,right}.fq"
 output = "$PWD/Videre.Out"
 
        
 Channel.fromFilePairs(params.reads)
-       .ifEmpty{ error "Could not locate reads: ${params.reads}"}
+       .ifEmpty{ error "Could not locate or pair reads: ${params.reads}"}
        .set{paired_reads}
 paired_reads.into{read_pair1; read_pair2}
 	     
+
+
 
 
 
@@ -32,6 +35,8 @@ process fastqc_RawReads{
 """
 
 }
+
+
 
 
 process multiqc_RawReads{
@@ -58,6 +63,7 @@ process multiqc_RawReads{
 
 
 
+
 process trimmomatic{
 
     //echo true
@@ -69,7 +75,9 @@ process trimmomatic{
     output:
     file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
     set  val(pair_id), file('*_1P.fastq'), file('*_2P.fastq') into TrimmedReads1,
-                                                                   TrimmedReads2	
+	                                                           TrimmedReads2,
+	                                                           TrimmedReads3
+	
    
     script:
 	(fwd,rev)=reads
@@ -155,8 +163,34 @@ process megahit{
 """
 
     megahit -1 $fwd  -2 $rev  -m 0.75  -t 1  -o $pair_id  
-    ls -lt
+    
 
+"""
+
+}
+
+
+
+
+process trinity{
+
+    echo true
+    publishDir path: "$output/Trinity", mode: 'copy'
+	
+    input:
+        set pair_id, file(fwd), file(rev) from TrimmedReads3
+    output:
+         file("trinity_${pair_id}") into trinityOut
+
+
+"""
+
+   Trinity --seqType fq --max_memory 4G --no_normalize_reads \
+          --left $fwd  --right $rev --output trinity_${pair_id} --CPU 4
+   $TRINITY_HOME/util/TrinityStats.pl  trinity_${pair_id}/Trinity.fasta | tee trinity_${pair_id}/Trinity.stats 
+   $TRINITY_HOME/util/misc/contig_ExN50_statistic.pl  trinity_${pair_id}/transcripts.TMM.EXPR.matrix \
+trinity_${pair_id}/Trinity.fasta | tee  trinity_${pair_id}/Trinity.ExN50.stats
+ 
 """
 
 }
