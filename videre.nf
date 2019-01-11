@@ -290,10 +290,11 @@ process gmst{
 		    
 """
       gmst.pl --fnn -faa   Cd_Hit_0.98.cd_hits  --verbose
-    
+         
 
 """
-	
+//output sent to GhostKoala
+
 }
 
 
