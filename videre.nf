@@ -1,17 +1,42 @@
 #!/usr/bin/env nextflow
 
-//params.reads = "$baseDir/DataX/*_{1,2}.f*q"
-params.reads = "$baseDir/data/reads?.{left,right}.fq"
+params.readtype = "se"
+params.readsbase = "$baseDir/data/"
+params.se_patt = "reads?.left.fq"
+params.pe_patt = "reads?.{left,right}.fq"
+params.fastqc_threads = 2
+output = "$PWD/Videre.Out"
 params.nr_faa = Channel.fromPath("/home/drewx/Documents/videre-pipeline/data/nr.faa")	
 params.cd_hit_threads=4
-params.threads = 4
-output = "$PWD/Videre.Out"
 cd_hit_clusters = Channel.from(0.80, 0.98)
-       
-Channel.fromFilePairs(params.reads)
-       .ifEmpty{ error "Could not locate or pair reads: ${params.reads}"}
+
+
+
+
+
+if ( params.readtype.toLowerCase() == "se") {
+reads = params.readsbase +'/'+ params.se_patt  
+log.info "Read type  =  ${params.readtype}"
+log.info "Reads file pattern = ${reads}"  
+Channel.fromPath(reads)
+       .ifEmpty{ error "Could not locate pair reads: ${reads}"}
+       .into{reads1; reads2; reads3}
+
+reads1.subscribe{println  it }
+
+}else{
+
+reads = params.readsbase +'/'+ params.pe_patt
+
+log.info "Read type  =  ${params.readtype}"
+log.info "Reads file pattern = ${reads}"  
+Channel.fromFilePairs(reads)
+       .ifEmpty{ error "Could not locate pair reads: ${reads}"}
        .set{paired_reads}
-       paired_reads.into{read_pair1; read_pair2; read_pair3}
+paired_reads.into{reads1; reads2; reads3}
+
+}
+
 
 
 process fastqc_RawReads{
@@ -19,7 +44,7 @@ process fastqc_RawReads{
     publishDir path: output, mode: 'copy'
 	
     input:
-	set pair_id, file(reads) from read_pair1
+	set pair_id, file(reads) from reads1
 
     output:
 	file("RawReadsQC/$pair_id") into fastqc_results
@@ -28,11 +53,13 @@ process fastqc_RawReads{
 """
    
    mkdir -pv RawReadsQC/$pair_id
-   fastqc --extract -f fastq  -o RawReadsQC/$pair_id -t 1  *f*q
+   fastqc --extract -f fastq  -o RawReadsQC/$pair_id -t $params.fastqc_threads  *f*q
    
 """
 
 }
+
+
 
 
 
@@ -67,7 +94,7 @@ process trimmomatic {
     publishDir path: "$output/TrimmoReads", mode: 'copy'
    
     input:
-	set pair_id, file(reads) from read_pair2
+	set pair_id, file(reads) from reads2
 
     output:
         file("*_1P.fastq") into (fwd_reads1, fwd_reads2)          
@@ -255,7 +282,7 @@ process salmon_quant{
     publishDir path: output, mode: 'copy'
     input:
 	file(index) from salmon_index
-        set pair_id, file(reads) from read_pair3
+        set pair_id, file(reads) from reads3
       
     output:
         file("Salmon") into Salmon_quant
@@ -272,7 +299,6 @@ process salmon_quant{
 """
 	
 }
-
 
 
 
