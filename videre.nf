@@ -143,7 +143,7 @@ else{ process trimmomatic {
 	    
 """
 
-   trimmomatic PE  $fwd $rev -baseout ${pair_id}_trim.fastq -phred33 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
+   $trimmomatic PE  $fwd $rev -baseout ${pair_id}_trim.fastq -phred33 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
    
 
 """   
