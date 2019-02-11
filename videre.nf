@@ -106,7 +106,7 @@ process trimmomatic_SE {
 	    
 """
 
-   trimmomatic SE  $reads  ${pair_id}_Trimmed.fastq  -phred33 LEADING:10 TRAILING:10 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
+   $trimmomatic SE  $reads  ${pair_id}_Trimmed.fastq  -phred33 LEADING:10 TRAILING:10 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
    ls
 
 """   
