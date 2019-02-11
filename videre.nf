@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 
 params.readtype = "se"
-params.readsbase = "/home/drewx/Documents/videre-pipeline/data"
+params.readsbase = "/home/andhlovu/RNA-seq/data"
 params.se_patt = "reads?.left.fq"
 params.pe_patt = "reads?.{left,right}.fq"
 
