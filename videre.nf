@@ -3,49 +3,59 @@
 params.readtype = "pe"
 //params.readsbase = "/home/andhlovu/RNA-seq/data"
 params.readsbase = "/home/drewx/Documents/videre-pipeline/data"
-params.se_patt = "reads?.left.fq"
-params.pe_patt = "reads?.{left,right}.fq"
+params.se_patt = "*_RNA_1.fq"
+params.pe_patt = "*_RNA_{1,2}.fq"
+params.qc_only = true
+
 output = "$PWD/Videre.Out"
-params.high_cpu = 4
-params.mid_cpu = 2
-params.low_cpu = 1
-// params.nr_faa = Channel.fromPath("/home/drewx/Documents/videre-pipeline/data/nr.faa")	
-// params.cd_hit_threads=4
-// params.trinity_threads = 4
-// params.fastqc_threads = 2
-//cd_hit_clusters = Channel.from(0.80, 0.98)
+
 
 
 if ( params.readtype.toLowerCase() == "se") {
+
     reads = params.readsbase +'/'+ params.se_patt  
-    log.info "Read type  =  ${params.readtype}"
-    log.info "Reads file pattern = ${reads}"
-    
     Channel.fromPath(reads)
-       .ifEmpty{ error "Could not locate pair reads: ${reads}"}
-       .map{it ->[it.baseName, [it]]}
-       .set{reads}
-	
+	  .ifEmpty{ error "Could not locate pair reads: ${reads}"}
+	  .map{it ->[it.baseName, [it]]}
+	  .set{get_reads}
+
 }else{
+
     reads = params.readsbase +'/'+ params.pe_patt
-    log.info "Read type  =  ${params.readtype}"
-    log.info "Reads file pattern = ${reads}"
-    
     Channel.fromFilePairs(reads)
-       .ifEmpty{ error "Could not locate pair reads: ${reads}"}
-       .set{reads}
+	   .ifEmpty{ error "Could not locate pair reads: ${reads}"}
+	   .set{get_reads}
 }
-log.info "${output}"
 
 
-reads.into{reads1; reads2; reads3}
+
+
+log.info """
+
+=========================================================
+  Videre: A nextlfow pipeline for metranscriptome data
+=========================================================
+
+Read type  		= ${params.readtype}
+Read file pattern 	= ${reads}    
+Output			= ${output}
+HTP cores    		= ${params.htp_cores}
+MTP cores    		= ${params.mtp_cores} 
+LTP cores    		= ${params.ltp_cores}
+
+---------------------------------------------------------
+"""
+
+    
+get_reads.into{reads1; reads2; reads3}
 
 
 
 
 process fastqc_RawReads{
-    
-    cpus params.mid_cpu
+
+    //echo true
+    cpus params. mtp_cores
     publishDir path: output, mode: 'copy'
 	
     input:
@@ -56,10 +66,14 @@ process fastqc_RawReads{
 
 """
    mkdir -pv RawReadsQC/$pair_id
-   fastqc --no-extract -f fastq  -o RawReadsQC/$pair_id -t $params.mid_cpu *f*q
+   fastqc\
+   --no-extract\
+   -f fastq\
+   -o RawReadsQC/$pair_id\
+   -t $params. mtp_cores *f*q
    
 """
-	
+
 }
 
 
@@ -67,7 +81,7 @@ process fastqc_RawReads{
 
 process multiqc_RawReads{
 
-    cpus params.low_cpu
+    cpus params.ltp_cores
     publishDir path: "$output/RawReadsQC/multiqc", mode: 'copy'
 	
     input:
@@ -81,7 +95,14 @@ process multiqc_RawReads{
 	
 """
    mv  RawReadsQC/*/*_fastqc*  RawReadsQC
-   fastqc_combine.pl -v --out  RawReadsQC --skip --files 'RawReadsQC/*_fastqc'  -t $params.low_cpu
+
+   fastqc_combine.pl\
+   -v\
+   --out\
+   RawReadsQC\
+   --skip\
+   --files 'RawReadsQC/*_fastqc'\
+   -t $params.ltp_cores
    multiqc RawReadsQC
         
 """
@@ -90,13 +111,12 @@ process multiqc_RawReads{
 
 
 
-
 if ( params.readtype.toLowerCase() == "se") {
 
 process trimmomatic_SE {
     
-    cpus params.high_cpu
-    echo true
+    cpus params.htp_cores
+    //echo true
     publishDir path: "$output/TrimmReads", mode: 'copy'
    
     input:
@@ -109,16 +129,32 @@ process trimmomatic_SE {
 	    
 """
 
-   $trimmomatic SE  $reads  ${pair_id}_Trimmed.fastq  -threads $params.high_cpu  -phred33 LEADING:10 TRAILING:10 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
+  $trimmomatic SE\
+  $reads\
+  ${pair_id}_Trimmed.fastq\
+  -threads $params.htp_cores\
+  -phred33\
+  LEADING:10\
+  TRAILING:10\
+  LEADING:10\
+  TRAILING:10\
+  SLIDINGWINDOW:25:10\
+  MINLEN:50\
+   2>  trim_out.log
 
 """   
-    
-}}
 
-else{ process trimmomatic {
+
+	
+}}else{
+
+
+
+    
+process trimmomatic {
     
     echo true
-    cpus params.high_cpu
+    cpus params.htp_cores
     publishDir path: "$output/Trimmomatic", mode: 'copy'
    
     input:
@@ -137,10 +173,20 @@ else{ process trimmomatic {
 	    
 """
 
-   $trimmomatic PE  $fwd $rev -baseout ${pair_id}_trim.fastq  -threads $params.high_cpu -phred33 LEADING:10 TRAILING:10 SLIDINGWINDOW:25:10 MINLEN:50 2>  trim_out.log
+   $trimmomatic PE\
+   $fwd\
+   $rev\
+   -baseout ${pair_id}_trim.fastq\
+   -threads $params.htp_cores\
+   -phred33\
+   LEADING:10\
+   TRAILING:10\
+   SLIDINGWINDOW:25:10\
+   MINLEN:50\
+   2>  trim_out.log
    
 
-"""   
+"""	
 // If the name “mySampleFiltered.fq.gz” is provided, the following 4 file
 // names will be used:
 //     o mySampleFiltered_1P.fq.gz - for paired forward reads
@@ -149,56 +195,75 @@ else{ process trimmomatic {
 //     o mySampleFiltered_2U.fq.gz - for unpaired
 	
 }
+}
+
+
+
+
+process fastqc_TrimmReads{
+    
+    //echo true
+    publishDir path: output, mode: 'copy'
+	
+    input:
+	set pair_id, file(fwd), file(rev) from TrimmedReads1
+
+    output:
+     	file("TrimmoReadsQC/$pair_id") into fastqc_results2
+
+	
+"""
+   mkdir -pv TrimmoReadsQC/$pair_id
+   fastqc --extract\
+   -f fastq\
+   -o TrimmoReadsQC/$pair_id\
+   -t $params.mtp_cores   *fastq
+   
+"""
 
 }
 
-// process fastqc_TrimmReads{
+
+
+
+process multiqc_TrimmReads{
     
-//     //echo true
-//     publishDir path: output, mode: 'copy'
-	
-//     input:
-// 	set pair_id, file(fwd), file(rev) from TrimmedReads1
+    //echo true
+    publishDir path: "$output/TrimmoReadsQC/multiqc", mode: 'copy'
+    input:
+        file("TrimmoReadsQC/*") from fastqc_results2.collect()
 
-//     output:
-//      	file("TrimmoReadsQC/$pair_id") into fastqc_results2
-
-	
-// """
- 
-//    mkdir -pv TrimmoReadsQC/$pair_id
-//    fastqc --extract -f fastq  -o TrimmoReadsQC/$pair_id -t 1  *fastq
-   
-// """
-
-// }
-
-
-
-
-// process multiqc_TrimmReads{
-//     //echo true
-//     publishDir path: "$output/TrimmoReadsQC/multiqc", mode: 'copy'
-//     input:
-//         file("TrimmoReadsQC/*") from fastqc_results2.collect()
-
-//     output:
-//     	file("multiqc_report.html") into MQC_report2
-//     	file("multiqc_data") into MQC_data2
-//     	file("TrimmoReadsQC/*fastqc*")   into FSQ_results2   
+    output:
+    	file("multiqc_report.html") into MQC_report2
+    	file("multiqc_data") into MQC_data2
+    	file("TrimmoReadsQC/*fastqc*")   into FSQ_results2   
 
 	
-// """
+"""
 
-//    mv  TrimmoReadsQC/*/*_fastqc*  TrimmoReadsQC
-//    fastqc_combine.pl -v --out  TrimmoReadsQC --skip --files 'TrimmoReadsQC/*_fastqc'
-//    multiqc TrimmoReadsQC
+   mv  TrimmoReadsQC/*/*_fastqc*  TrimmoReadsQC
+
+   fastqc_combine.pl\
+   -v\
+   --out  TrimmoReadsQC\
+   --skip\
+   --files 'TrimmoReadsQC/*_fastqc'
+
+   multiqc TrimmoReadsQC
         
-// """    
+"""    
 
-// }
+	    
+}
 
 
+
+
+// params.nr_faa = Channel.fromPath("/home/drewx/Documents/videre-pipeline/data/nr.faa")	
+// params.cd_hit_threads=4
+// params.trinity_threads = 4
+// params.fastqc_threads = 2
+//cd_hit_clusters = Channel.from(0.80, 0.98)
 
 // if ( params.readtype.toLowerCase() == "se") {
 
