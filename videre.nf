@@ -2,15 +2,16 @@
 
 params.readtype = "pe"
 //params.readsbase = "/home/andhlovu/RNA-seq/data"
-params.readsbase = "/home/drewx/Documents/videre-pipeline/data"
-params.se_patt = "*_RNA_1.fq"
-params.pe_patt = "*_RNA_{1,2}.fq"
-params.qc_only = true
+params.readsbase = "/home/drewx/Documents/videre-pipeline/data2"
+params.se_patt = "*_RNA_1.fq.gz"
+params.pe_patt = "*_RNA_{1,2}.fq.gz"
+params.qc_only = true 
+params.fileExt = "fq.gz"
+params.output  = "$PWD/Videre.Out"
 
-output = "$PWD/Videre.Out"
 
 
-
+       
 if ( params.readtype.toLowerCase() == "se") {
 
     reads = params.readsbase +'/'+ params.se_patt  
@@ -28,8 +29,20 @@ if ( params.readtype.toLowerCase() == "se") {
 }
 
 
+       
+if (!reads.contains(params.fileExt)){
 
+log.info """ 
+Error!
+Read pattern '$reads' does not match read file extension '$params.fileExt'.
+Check read pattern and read file extension params.
+"""
+    
+}
 
+fileExt_glob = "*"+params.fileExt
+output = params.output
+       
 log.info """
 
 =========================================================
@@ -39,14 +52,13 @@ log.info """
 Read type  		= ${params.readtype}
 Read file pattern 	= ${reads}    
 Output			= ${output}
+Read ext. glob          = ${fileExt_glob}
 HTP cores    		= ${params.htp_cores}
 MTP cores    		= ${params.mtp_cores} 
 LTP cores    		= ${params.ltp_cores}
 
 ---------------------------------------------------------
-"""
-
-    
+"""    
 get_reads.into{reads1; reads2; reads3}
 
 
@@ -54,8 +66,8 @@ get_reads.into{reads1; reads2; reads3}
 
 process fastqc_RawReads{
 
-    //echo true
-    cpus params. mtp_cores
+    cpus 2 //only 2 files
+    memory 1G
     publishDir path: output, mode: 'copy'
 	
     input:
@@ -66,12 +78,11 @@ process fastqc_RawReads{
 
 """
    mkdir -pv RawReadsQC/$pair_id
-   fastqc\
-   --no-extract\
+   /usr/bin/time -v -o  RawReadsQC/${pair_id}/time_${pair_id}_fastqc_rawreads fastqc\
+   --extract\
    -f fastq\
    -o RawReadsQC/$pair_id\
-   -t $params. mtp_cores *f*q
-   
+   -t 2 ${fileExt_glob}
 """
 
 }
@@ -81,13 +92,15 @@ process fastqc_RawReads{
 
 process multiqc_RawReads{
 
-    cpus params.ltp_cores
     publishDir path: "$output/RawReadsQC/multiqc", mode: 'copy'
-	
+    cpus params.ltp_cores
+    memory 2G
+
     input:
         file("RawReadsQC/*") from fastqc_results.collect()
 
     output:
+        file("time_*") into time_multiqc_RawReads
     	file("multiqc_report.html") into MQC_report1
     	file("multiqc_data") into MQC_data1
     	file("RawReadsQC/*fastqc*")   into FSQ_results1   
@@ -95,15 +108,14 @@ process multiqc_RawReads{
 	
 """
    mv  RawReadsQC/*/*_fastqc*  RawReadsQC
-
-   fastqc_combine.pl\
+  
+   /usr/bin/time -v -o time_fastqc_combine fastqc_combine.pl\
    -v\
    --out\
    RawReadsQC\
    --skip\
-   --files 'RawReadsQC/*_fastqc'\
-   -t $params.ltp_cores
-   multiqc RawReadsQC
+   --files 'RawReadsQC/*_fastqc'
+   /usr/bin/time -v -o time_multiqc multiqc RawReadsQC
         
 """
 	    
@@ -111,151 +123,156 @@ process multiqc_RawReads{
 
 
 
-if ( params.readtype.toLowerCase() == "se") {
 
-process trimmomatic_SE {
+// if ( params.readtype.toLowerCase() == "se") {
+
     
-    cpus params.htp_cores
-    //echo true
-    publishDir path: "$output/TrimmReads", mode: 'copy'
-   
-    input:
-	set pair_id, file(reads) from reads2
+// process trimmomatic_SE {
+    
+//     echo true
+//     publishDir path: "$output/TrimmReads", mode: 'copy'
+//     cpus params.mtp_cores
 
-    output:
-	file("trim_out.log") into  trim_log
-	    file("*_Trimmed.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
-	set  val(pair_id), file("*_Trimmed.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
+
+//     input:
+// 	set pair_id, file(reads) from reads2
+
+//     output:
+// 	file("trim.log") into  trim_log
+// 	    file("*_Trimmed.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
+// 	set  val(pair_id), file("*_Trimmed.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
 	    
-"""
+// """
 
-  $trimmomatic SE\
-  $reads\
-  ${pair_id}_Trimmed.fastq\
-  -threads $params.htp_cores\
-  -phred33\
-  LEADING:10\
-  TRAILING:10\
-  LEADING:10\
-  TRAILING:10\
-  SLIDINGWINDOW:25:10\
-  MINLEN:50\
-   2>  trim_out.log
+//   $trimmomatic SE\
+//   $reads\
+//   ${pair_id}_Trimmed.fastq\
+//   -threads $params.htp_cores\
+//   -phred33\
+//   -trimlog trim.log\
+//   LEADING:10\
+//   TRAILING:10\
+//   LEADING:10\
+//   TRAILING:10\
+//   SLIDINGWINDOW:25:10\
+//   MINLEN:50
 
-"""   
+// """   
+// }
 
-
-	
-}}else{
-
+// }else{
 
 
+// process trimmomatic {
     
-process trimmomatic {
-    
-    echo true
-    cpus params.htp_cores
-    publishDir path: "$output/Trimmomatic", mode: 'copy'
+//     echo true
+//     cpus params.htp_cores
+//     publishDir path: "$output/Trimmomatic", mode: 'copy'
    
-    input:
+//     input:
 	
-	set pair_id, file(reads) from reads2
+// 	set pair_id, file(reads) from reads2
 
-    output:
-        file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
-        file("trim_out.log") into  trim_log
-	    file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)
-        file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
-	    set  val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
+//     output:
+//         file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
+// 	file('time') into time
+//         file("trim.log") into  trim_log
+// 	file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)
+//         file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
+// 	set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
 	    
-    script:
-    	(fwd,rev)=reads
+//     script:
+	
+//     	(fwd,rev)=reads
+	
 	    
-"""
+// """
 
-   $trimmomatic PE\
-   $fwd\
-   $rev\
-   -baseout ${pair_id}_trim.fastq\
-   -threads $params.htp_cores\
-   -phred33\
-   LEADING:10\
-   TRAILING:10\
-   SLIDINGWINDOW:25:10\
-   MINLEN:50\
-   2>  trim_out.log
+//    /usr/bin/time -v -o time $trimmomatic PE\
+//    $fwd\
+//    $rev\
+//    -baseout ${pair_id}_trim.fastq\
+//    -threads $params.htp_cores\
+//    -phred33\
+//    -trimlog  trim.log\
+//    LEADING:10\
+//    TRAILING:10\
+//    SLIDINGWINDOW:25:10\
+//    MINLEN:50
    
+// """	
+// // If the name “mySampleFiltered.fq.gz” is provided, the following 4 file
+// // names will be used:
+// //     o mySampleFiltered_1P.fq.gz - for paired forward reads
+// //     o mySampleFiltered_1U.fq.gz - for unpaired forward reads
+// //     o mySampleFiltered_2P.fq.gz - for paired reverse reads
+// //     o mySampleFiltered_2U.fq.gz - for unpaired
 
-"""	
-// If the name “mySampleFiltered.fq.gz” is provided, the following 4 file
-// names will be used:
-//     o mySampleFiltered_1P.fq.gz - for paired forward reads
-//     o mySampleFiltered_1U.fq.gz - for unpaired forward reads
-//     o mySampleFiltered_2P.fq.gz - for paired reverse reads
-//     o mySampleFiltered_2U.fq.gz - for unpaired
 	
-}
-}
+// }
+// }
 
 
 
 
-process fastqc_TrimmReads{
+// process fastqc_TrimmReads{
     
-    //echo true
-    publishDir path: output, mode: 'copy'
-	
-    input:
-	set pair_id, file(fwd), file(rev) from TrimmedReads1
+//     //echo true
+//     publishDir path: output, mode: 'copy'
+//     cpus 2
+//     memory 1G
+    
+//     input:
+// 	set pair_id, file(fwd), file(rev) from TrimmedReads1
 
-    output:
-     	file("TrimmoReadsQC/$pair_id") into fastqc_results2
+//     output:
+//      	file("TrimmoReadsQC/$pair_id") into fastqc_results2
 
 	
-"""
-   mkdir -pv TrimmoReadsQC/$pair_id
-   fastqc --extract\
-   -f fastq\
-   -o TrimmoReadsQC/$pair_id\
-   -t $params.mtp_cores   *fastq
+// """
+//    mkdir -pv TrimmoReadsQC/$pair_id
+//    fastqc --extract\
+//    -f fastq\
+//    -o TrimmoReadsQC/$pair_id\
+//    -t 2 *fastq
    
-"""
+// """
 
-}
+	    
+// }
 
 
 
 
-process multiqc_TrimmReads{
+// process multiqc_TrimmReads{
     
-    //echo true
-    publishDir path: "$output/TrimmoReadsQC/multiqc", mode: 'copy'
-    input:
-        file("TrimmoReadsQC/*") from fastqc_results2.collect()
+//     //echo true
+//     publishDir path: "$output/TrimmoReadsQC/multiqc", mode: 'copy'
+//     input:
+//         file("TrimmoReadsQC/*") from fastqc_results2.collect()
 
-    output:
-    	file("multiqc_report.html") into MQC_report2
-    	file("multiqc_data") into MQC_data2
-    	file("TrimmoReadsQC/*fastqc*")   into FSQ_results2   
+//     output:
+//     	file("multiqc_report.html") into MQC_report2
+//     	file("multiqc_data") into MQC_data2
+//     	file("TrimmoReadsQC/*fastqc*")   into FSQ_results2   
 
 	
-"""
+// """
 
-   mv  TrimmoReadsQC/*/*_fastqc*  TrimmoReadsQC
+//    mv  TrimmoReadsQC/*/*_fastqc*  TrimmoReadsQC
 
-   fastqc_combine.pl\
-   -v\
-   --out  TrimmoReadsQC\
-   --skip\
-   --files 'TrimmoReadsQC/*_fastqc'
+//    /usr/bin/time -v -o TrimmoReadsQC/time fastqc_combine.pl\
+//    -v\
+//    --out  TrimmoReadsQC\
+//    --skip\
+//    --files 'TrimmoReadsQC/*_fastqc'
 
-   multiqc TrimmoReadsQC
+//    multiqc TrimmoReadsQC
         
-"""    
+// """    
 
 	    
-}
-
+// }
 
 
 
