@@ -2,22 +2,21 @@
 
 params.readtype		= "pe"
 //params.readsbase 	= "/home/andhlovu/RNA-seq/data"
-params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
 params.megahit 		= true
 params.metaspades 	= true
 params.quast 		= true
 params.cdHit_perc       = 0.98
-params.h_mem  		= 10
-params.m_mem  		= 5
+params.h_mem  		= 200
+params.m_mem  		= 10
 params.trimm            = true
 DB_REF                  = System.getenv('DB_REF')
-params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
-
-
+//params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
+params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 
 
 
@@ -482,7 +481,7 @@ process quast{
 
     output:
 	file("Quast") into QuastOut
-        file("MetaQuast") into QuastOut
+        file("MetaQuast") into MetaQuastOut
     
     script:
         contig1  = metaspades_contigs1.val.getName()
