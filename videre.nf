@@ -2,11 +2,12 @@
 
 params.readtype		= "pe"
 //params.readsbase 	= "/home/andhlovu/RNA-seq/data"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
-params.readqc  		= false
+params.readqc  		= true
 params.megahit 		= true
 params.metaspades 	= true
 params.quast 		= true
@@ -131,7 +132,7 @@ process multiqc_RawReads{
 
     output:
 	//use set for multiple file reduce channel
-	set file("multiqc_report.html"), file("*.pdf"), file("multiqc_data"), file("RawReadsQC/*fastqc*")  into MQC_report1
+	set file("multiqc_report.html"), file("multiqc_data"), file("RawReadsQC/*fastqc*")  into MQC_report1
        
 
  """  
@@ -146,7 +147,6 @@ process multiqc_RawReads{
  
     multiqc\
     RawReadsQC\
-    --pdf\
     -v 
  """
 
@@ -201,6 +201,7 @@ process trimmomatic_SE {
 process trimmomatic{
     
     //echo true
+    memory params.m_mem
     cpus  params.mtp_cores
     publishDir path: "$output/Trimmomatic", mode: 'copy'
    
@@ -210,7 +211,7 @@ process trimmomatic{
 
     
     output:
-        //set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
+        set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
 	file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
         file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)	
         set file("trim_${pair_id}.log"), file("${pair_id}.log")  into  trim_log
@@ -327,6 +328,7 @@ process megahit{
     //echo true
     cpus  params.htp_cores
     //publishDir path: output, mode: 'copy'
+    
     storeDir output
 
     
