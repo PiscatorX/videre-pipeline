@@ -10,8 +10,15 @@ params.readqc  		= false
 params.megahit 		= true
 params.metaspades 	= true
 params.quast 		= true
-params.cdHit_perc       = 98
+params.cdHit_perc       = 0.98
 params.h_mem  		= 10
+params.m_mem  		= 5
+params.trimm            = true
+DB_REF                  = System.getenv('DB_REF')
+params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
+
+
+
 
 
 if ( params.readtype.toLowerCase() == "se") {
@@ -30,10 +37,16 @@ if ( params.readtype.toLowerCase() == "se") {
 	   .set{get_reads}
 }
 
+if (! params.sortmerna_db ){
+    
+    error("SortMeRNA database not set")
+}
 
 fileExt_glob = "*" + reads.tokenize(".")[-1]
 output = params.output
 get_reads.into{reads1; reads2; reads3; readx}
+
+sortmerna_db  = file(params.sortmerna_db)
 
 log.info """
 
@@ -50,10 +63,14 @@ Midium TP cores    	= ${params.mtp_cores}
 Low TP cores    	= ${params.ltp_cores}
 Read QC                 = ${params.readqc}
 H_mem  			= ${params.h_mem}
+trimmomatic 		= ${params.trimm}
+
 Assemblers
 Megahit			= ${params.megahit}
 Metaspades 		= ${params.metaspades}
 
+Databases
+SortmerRMA_DB           = ${params.sortmerna_db}
 ---------------------------------------------------------
 
 Reads
@@ -71,10 +88,12 @@ log.info"""
 
 if (params.readqc) {
 
+
+
+
 process fastqc_RawReads{
 
-    //echo true
-    cpus 2 //only 2 files
+    cpus 2 
     memory 1G
     publishDir path: output, mode: 'copy'
 	
@@ -82,7 +101,9 @@ process fastqc_RawReads{
 	set pair_id, file(reads) from reads1
 
     output:
-	file("RawReadsQC/$pair_id") into fastqc_results
+       file("RawReadsQC/$pair_id") into fastqc_results
+
+
 
 """
    mkdir -p RawReadsQC/$pair_id 
@@ -95,7 +116,6 @@ process fastqc_RawReads{
 """
 
 }
-
 
 
 
@@ -135,6 +155,7 @@ process multiqc_RawReads{
 }
 
 
+
 if ( params.readtype.toLowerCase() == "se") {
    
 process trimmomatic_SE {
@@ -154,63 +175,71 @@ process trimmomatic_SE {
 	    
 """
 
-  $trimmomatic SE\
-  $reads\
-  ${pair_id}_Trimmed.fastq\
-  -threads $params.htp_cores\
-  -phred33\
-  -trimlog trim.log\
-  LEADING:10\
-  TRAILING:10\
-  LEADING:10\
-  TRAILING:10\
-  SLIDINGWINDOW:25:10\
-  MINLEN:50  2> trim_${pair_id}.log 
+    $trimmomatic SE\
+    $reads\
+    ${pair_id}_Trimmed.fastq\
+    -threads $params.htp_cores\
+    -phred33\
+    -trimlog trim.log\
+    LEADING:10\
+    TRAILING:10\
+    LEADING:10\
+    TRAILING:10\
+    SLIDINGWINDOW:25:10\
+    MINLEN:50  2> trim_${pair_id}.log 
 
-"""   
+"""
+
+
 }
+
 
 }else{
 
 
-process trimmomatic {
+
+
+process trimmomatic{
     
     //echo true
     cpus  params.mtp_cores
     publishDir path: "$output/Trimmomatic", mode: 'copy'
    
+    
     input:
-	
 	set pair_id, file(reads) from reads2
 
+    
     output:
         //set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
 	file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
-        file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)
-	
+        file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)	
         set file("trim_${pair_id}.log"), file("${pair_id}.log")  into  trim_log
-	
         file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
 	file('time_trimmomatic') into time
-	
-    script:
-	
-    	(fwd,rev)=reads
+
+    when:
+        params.trimm == true
+
+    script:	
+    	(fwd, rev)=reads
+
+    
 	
 	    
 """
 
-   /usr/bin/time -v -o time_trimmomatic $trimmomatic PE\
-   $fwd\
-   $rev\
-   -baseout ${pair_id}_trim.fastq\
-   -threads $params.htp_cores\
-   -phred33\
-   -trimlog  ${pair_id}.log\
-   LEADING:10\
-   TRAILING:10\
-   SLIDINGWINDOW:25:10\
-   MINLEN:50  2> trim_${pair_id}.log 
+    /usr/bin/time -v -o time_trimmomatic $trimmomatic PE\
+    $fwd\
+    $rev\
+    -baseout ${pair_id}_trim.fastq\
+    -threads $params.htp_cores\
+    -phred33\
+    -trimlog  ${pair_id}.log\
+    LEADING:10\
+    TRAILING:10\
+    SLIDINGWINDOW:25:10\
+    MINLEN:50  2> trim_${pair_id}.log 
    
 """	
 // If the name “mySampleFiltered.fq.gz” is provided, the following 4 file
@@ -294,40 +323,46 @@ process multiqc_TrimmomaticReads{
 
 
 
-
 process megahit{
-
+    
     //echo true
     cpus  params.htp_cores
-    publishDir path: output, mode: 'copy'
+    //publishDir path: output, mode: 'copy'
+    storeDir output
+
     
     input:
 	file(all_fwd) from fwd_reads1.collect()
         file(all_rev) from rev_reads1.collect()
+    
     when:
         params.megahit == true
 	
 
     output:
         set file("MegaHit"), file('time_megahit') into MegahitOut
-	file('MegaHit/MegaHit.contigs.fa') into (megahit_contigs1, megahit_contigs2)
+        file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3)
 	
     script:
         fwd=all_fwd.join(",")
         rev=all_rev.join(",")
 	   
-"""        
-     /usr/bin/time -v  -o time_megahit  megahit \
-     -1 $fwd \
-     -2  $rev \
-     -t ${params.htp_cores} \
-     --tmp-dir /tmp \
-     -o MegaHit\
-     --out-prefix MegaHit \
-     --verbose
-     mv MegaHit/MegaHit.contigs.fa  MegaHit/MegaHit.fa
-     $TRINITY_HOME/util/TrinityStats.pl  MegaHit/MegaHit.fa  | tee MegaHit/contig_Nx_megahit.stats 
-     #megahit_toolkit contig2fastg 95 MegaHit/intermediate_contigs/k95.contigs.fa >  MegaHit/k95.fastg     
+
+
+""" 
+  
+    /usr/bin/time -v  -o time_megahit  megahit \
+    -1 $fwd \
+    -2 $rev \
+    -t ${params.htp_cores} \
+    --tmp-dir /tmp \
+    -o MegaHit\
+    --out-prefix MegaHit \
+    --verbose
+    mv MegaHit/MegaHit.contigs.fa  MegaHit/MegaHit.fasta
+    #$TRINITY_HOME/util/TrinityStats.pl  MegaHit/MegaHit.fa  | tee MegaHit/contig_Nx_megahit.stats 
+    #megahit_toolkit contig2fastg 95 MegaHit/intermediate_contigs/k95.contigs.fa >  MegaHit/k95.fastg     
+
 
 """
 //Will fail if k=95 is not reached	   
@@ -338,14 +373,15 @@ process megahit{
 
 
 
-
 process metaSpades{
 
 
     //echo true
     cpus  params.htp_cores
-    publishDir path: output, mode: 'copy'
-    
+    // publishDir path: output, mode: 'copy'
+    storeDir output
+
+
     input:
 	file(all_fwd) from fwd_reads2.collect()
         file(all_rev) from rev_reads2.collect()
@@ -356,7 +392,7 @@ process metaSpades{
 
     output:
 	set file("Metaspades"), file("time_metaspades") into MetaspadesOut
-        file("Metaspades/contigs.fasta") into (metaspades_contigs1, metaspades_contigs2)
+        file("Metaspades/metaspades.fasta") into (metaspades_contigs1, metaspades_contigs2)
 	
     script:
 	 fwd=all_fwd.join(" ")
@@ -364,16 +400,16 @@ process metaSpades{
     
 
 """  
-     cat ${fwd} > fwd.fastq
-     cat ${rev} > rev.fastq 
-     /usr/bin/time -v  -o time_metaspades  metaspades.py \
-     -1 fwd.fastq \
-     -2 rev.fastq \
-     -t ${params.htp_cores} \
-     -m ${params.h_mem} \
-     -o Metaspades
-     mv Metaspades/contigs.fasta  Metaspades/metaspades.fasta
-     $TRINITY_HOME/util/TrinityStats.pl  Metaspades/metaspades.fasta | tee Metaspades/contig_Nx_metaspades.stats 
+    cat ${fwd} > fwd.fastq
+    cat ${rev} > rev.fastq 
+    /usr/bin/time -v  -o time_metaspades  metaspades.py \
+    -1 fwd.fastq \
+    -2 rev.fastq \
+    -t ${params.htp_cores} \
+    -m ${params.h_mem} \
+    -o Metaspades
+    mv Metaspades/contigs.fasta  Metaspades/metaspades.fasta
+    #$TRINITY_HOME/util/TrinityStats.pl  Metaspades/metaspades.fasta | tee Metaspades/contig_Nx_metaspades.stats 
 
 """
 
@@ -382,40 +418,126 @@ process metaSpades{
 
 
 
-metaspades_contigs_1 = (params.metaspades) ?  metaspades_contigs1 : Channel.empty()
-megahit_contigs_1 =  (params.metaspades) ? megahit_contigs1 :  Channel.empty()
+
+
+process Trinity{
+
+    echo true
+    cpus params.htp_cores
+    memory params.h_mem
+    //errorStrategy 'ignore'
+    //publishDir path: output, mode: 'copy'
+    storeDir output
+    
+    input:
+       	file(all_fwd) from fwd_reads3.collect()
+        file(all_rev) from rev_reads3.collect()
+	
+
+    output:
+        set file("Trinity"), file('time_Trinity') into Trinity
+        file("Trinity/Trinity.fasta") into trinity_contigs 	
+
+    script:
+        fwd=all_fwd.join(",")
+        rev=all_rev.join(",")
+	   
+"""        
+     /usr/bin/time -v  -o time_Trinity  Trinity\
+     --seqType fq\
+     --left  $fwd\
+     --right $rev\
+     --max_memory ${params.h_mem}G \
+     --CPU ${params.htp_cores}\
+     --output Trinity\
+     --verbose
+     $TRINITY_HOME/util/TrinityStats.pl  MegaHit/Trinity.fasta | tee Trinity/contig_Nx.stats 
+
+
+"""
+
+
+}
+
+
+// metaspades_contigs_1 = (params.metaspades) ?  metaspades_contigs1 : Channel.empty()
+// megahit_contigs_1 = (params.megahit) ? megahit_contigs1 :  Channel.empty()
+
 
 
 process quast{
 
-    echo true
+    //echo true
     cpus  params.htp_cores
     //errorStrategy 'ignore'
     publishDir path: output, mode: 'copy'
     
     input:
-	file("contigs.fasta") from metaspades_contigs_1.ifEmpty {'EMPTY'}
-	file("MegaHit.contigs.fa") from  megahit_contigs_1.ifEmpty {'EMPTY'}
-
+	file(metaspades_contig) from metaspades_contigs1
+	file(megahit_contig) from megahit_contigs1
+        file(trinity_contig) from trinity_contigs 	
+    
     when:
         params.quast == true
 
     output:
-	 file("Quast") into QuastOut
+	file("Quast") into QuastOut
+        file("MetaQuast") into QuastOut
     
     script:
-	contig1  = metaspades_contigs1.val.getName()
-	contig2  = megahit_contigs1.val.getName()
-	all_contigs  = [contig1, contig2].join(" ")
-	log.info"$all_contigs"
+        contig1  = metaspades_contigs1.val.getName()
+        contig2  = megahit_contigs1.val.getName()
+        contig3  = trinity_contigs.val.getName()
+        all_contigs  = [contig1, contig2, contig3].join(" ")
+
+""" 
+
+   /usr/bin/time -v  -o time_quast quast\
+   ${all_contigs} \
+   -t ${params.htp_cores} \
+   -o Quast  
 
 
-"""  
-     /usr/bin/time -v  -o time_quast quast\
-     ${all_contigs} \
-     -t ${params.htp_cores} \
-     -o Quast  
+   /usr/bin/time -v  -o time_metaquast metaquast.py \
+   ${all_contigs} \
+   -t ${params.htp_cores} \
+   -o MetaQuast  
+
+
+"""
+
+}
+
+
+
+  
+
+process build_sortmerRNA_IDX{
+
+    echo true
+    cpus params.mtp_cores
+    storeDir "${DB_REF}/SortMeRNA"
+    memory params.m_mem
  
+    input:
+	file sortmerna_db
+    
+    output:
+	megahit_contigs3
+  	file "${sortmerna_idx}*" into SortMeRNA_idx
+        
+     
+            
+    script:
+	sortmerna_idx = file(params.sortmerna_db).getName().replaceFirst(/fasta/, "idx")
+    
+"""
+    
+    indexdb \
+    --ref ${sortmerna_db},${sortmerna_idx} \
+    -m ${params.h_mem} \
+    -v 
+    
 """
 
 }
@@ -423,18 +545,56 @@ process quast{
 
 
 
+process sortmerRNA{
+
+    // echo true
+    // cpus params.mtp_cores
+    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
+    storeDir "${DB_REF}/SortMeRNA"
+    
+    memory params.m_mem
+    input:
+	val SortMeRNA_idx
+        //file("MegaHit.contigs.fa") from  megahit_contigs_3
+        file contig_fasta from megahit_contigs3
+    
+    output:
+     	file("sortmerna_aligned.fasta") into SortMeRNA_Aligned
+        file("sortmerna_contigs.fasta") into SortMeRNA_Contigs
+       
+            
+    script:
+	sortmerna_idx = "${DB_REF}/SortMeRNA/" + file(params.sortmerna_db).getName().replaceFirst(/fasta/, "idx")
+        
+    
+"""
+    
+    sortmerna \
+    --ref  ${sortmerna_db},${sortmerna_idx} \
+    --reads ${contig_fasta} \
+    --aligned sortmerna_aligned \
+    --other sortmerna_contigs \
+    -a ${params.htp_cores} \
+    --fastx \
+    -m ${params.m_mem}
+"""
+
+}
+
+
+
 process cd_hit_est{
     
-   echo true
+   //echo true
    cpus  params.htp_cores
-   publishDir path: output, mode: 'copy'
+    publishDir path: "${output}/CD-Hit", mode: 'copy'
   
    input:
-       file(contigs) from metaspades_contigs2
-       //file(contigs) from megahit_contigs2
+       //file(contigs) from metaspades_contigs2
+       file(contigs) from megahit_contigs2
        
    output:
-       file "Cd_Hit_${params.cdHit_perc}" into (cd_hits1, cd_hits2, cd_hits3)
+       file "Cd_Hit_${params.cdHit_perc}.cd_hits" into (cd_hits1, cd_hits2, cd_hits3)
        file "Cd_Hit_${params.cdHit_perc}.cd_hits.clstr" into cdhit_clusters
 
 
@@ -442,16 +602,17 @@ process cd_hit_est{
     cd-hit-est \
     -i $contigs \
     -c ${params.cdHit_perc} \
-    -T  \
+    -T ${params.htp_cores} \
     -d 0 \
     -r 0 \
     -p 1 \
     -g 1 \
     -o Cd_Hit_${params.cdHit_perc}.cd_hits 
-    
+     ls -l
 """
 
 }
+
 
 
 
@@ -560,45 +721,6 @@ process cd_hit_est{
     
 // }
 
-
-
-// process Trinity{
-
-//     echo true
-//     cpus params.htp_cores
-//     memory params.h_mem
-//     //errorStrategy 'ignore'
-//     publishDir path: output, mode: 'copy'
-    
-//     input:
-//        	file(all_fwd) from fwd_reads2.collect()
-//         file(all_rev) from rev_reads2.collect()
-	
-
-//     output:
-//         //set file("Trinity"), file('time_megahit') into MegahitOut
-// 	//file('MegaHit/MegaHit.contigs.fa') into Contigs_fasta
-
-//     script:
-//         fwd=all_fwd.join(",")
-//         rev=all_rev.join(",")
-	   
-// """        
-//      /usr/bin/time -v  -o time_Trinity  Trinity\
-//      --seqType fq\
-//      --left  $fwd\
-//      --right $rev\
-//      --max_memory ${params.h_mem}\
-//      --CPU ${params.htp_cores}\
-//      --output Trinity\
-//      --verbose
-//      $TRINITY_HOME/util/TrinityStats.pl  MegaHit/Trinity.fasta | tee Trinity/contig_Nx.stats 
-
-
-// """
-
-
-// }
 
 
 // if ( params.readtype.toLowerCase() == "se") {
