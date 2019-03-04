@@ -2,10 +2,10 @@
 
 params.readtype		= "pe"
 //params.readsbase 	= "/home/andhlovu/RNA-seq/data"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
-params.readsbase 	= "/home/andhlovu/data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= true
 params.megahit 		= true
@@ -296,7 +296,7 @@ process multiqc_TrimmomaticReads{
         file('*') from trim_log.collect()
  
     output:
-    	set file("multiqc_report.html"), file("*.pdf"), file("multiqc_data"), file("TrimmomaticReadsQC/*fastqc*")  into MQC_report2      
+    	set file("multiqc_report.html"), file("multiqc_data"), file("TrimmomaticReadsQC/*fastqc*")  into MQC_report2      
 
 	
 """
@@ -311,7 +311,6 @@ process multiqc_TrimmomaticReads{
    mv -v  trim_*.log  TrimmomaticReadsQC/ 
    
    multiqc TrimmomaticReadsQC\
-   --pdf\
    -v 
         
 """    
