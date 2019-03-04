@@ -1,20 +1,20 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/andhlovu/RNA-seq/data"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
-params.readqc  		= true
+params.readqc  		= false
 params.megahit 		= true
 params.metaspades 	= true
 params.quast 		= true
 params.cdHit_perc       = 0.98
 params.h_mem  		= 200
 params.m_mem  		= 10
-params.trimm            = true
+params.trimm            = false
 DB_REF                  = System.getenv('DB_REF')
 //params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
@@ -37,6 +37,7 @@ if ( params.readtype.toLowerCase() == "se") {
 	   .set{get_reads}
 }
 
+
 if (! params.sortmerna_db ){
     
     error("SortMeRNA database not set")
@@ -44,7 +45,7 @@ if (! params.sortmerna_db ){
 
 fileExt_glob = "*" + reads.tokenize(".")[-1]
 output = params.output
-get_reads.into{reads1; reads2; reads3; readx}
+get_reads.into{reads1; reads2; reads3; readx; reads_cp}
 
 sortmerna_db  = file(params.sortmerna_db)
 
@@ -87,9 +88,6 @@ log.info"""
 
 
 if (params.readqc) {
-
-
-
 
 process fastqc_RawReads{
 
@@ -294,7 +292,7 @@ process multiqc_TrimmomaticReads{
     input:
         file("TrimmomaticReadsQC/*") from fastqc_results2.collect()
         file('*') from trim_log.collect()
- 
+	
     output:
     	set file("multiqc_report.html"), file("multiqc_data"), file("TrimmomaticReadsQC/*fastqc*")  into MQC_report2      
 
@@ -320,6 +318,20 @@ process multiqc_TrimmomaticReads{
 }
 
 
+
+
+
+
+if (params.trimm == false) {
+
+    //workaround to test assembly
+    //this skips trimmomatic trimming
+    reads_cp.into{cp_reads1; cp_reads2}        
+    cp_reads1.map{ it[1][0] }
+             .into{fwd_reads1; fwd_reads2; fwd_reads3}
+    cp_reads2.map{ it[1][1] }
+             .into{rev_reads1; rev_reads2; rev_reads3}          
+}
 
 
 process megahit{
