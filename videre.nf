@@ -1,18 +1,17 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
 params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
-params.megahit 		= false
+params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
 params.quast 		= false
-params.diamomd          = true
 params.cdHit_perc       = 0.98
 params.h_mem  		= 200
 params.m_mem  		= 10
@@ -782,40 +781,3 @@ process gmst{
 
 
 
-
-process diamond{
-    
-    echo true
-    publishDir path: "$output/Diamond", mode: 'copy'
-    input:
-       file(nr_faa) from params.nr_faa
-       file(reads_fna) from cd_hits3.collect()
-
-    output:
-       file('matches.dmnd') into diamond_matches
-       file('nr.dmnd')      into diamond_ref
-       file('diamond.unaligned') into diamond_un
-       file('diamond.aligned') into diamond_al
-    
-
-"""
-
-    diamond makedb --in $nr_faa -d nr --threads $params.threads -v
-
-
-"""
-    
-}
-
-
-
-    // diamond blastx -d nr \
-    // --un diamond.unaligned \
-    // --al diamond.aligned \
-    // -q  Cd_Hit_0.98.cd_hits \
-    // -o matches.dmnd \
-    // --more-sensitive \
-    // --evalue 1e-5 \
-    // --top 90 \
-    // --id 40 \
-    // -v    
