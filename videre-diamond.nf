@@ -39,7 +39,7 @@ log.info"""
 process diamond_idx{
 
     cpus params.htp_cores
-    memory params.ht_memory
+    memory params.htp_memory
     echo true
     storeDir "$params.DB_REF/Diamond"
     input:
@@ -86,7 +86,7 @@ process diamond{
 
     echo true
     cpus params.htp_cores
-    memory params.ht_memory
+    memory params.htp_memory
     publishDir path: output , mode: 'move'
     
     input:
