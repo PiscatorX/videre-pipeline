@@ -6,7 +6,7 @@ params.DB_REF    = System.getenv('DB_REF')
 params.queries_path = "Videre.Out/MegaHit/"
 params.diamond_idx = false
 params.diamond   = true
-
+params.ht_memory = '100 GB'
 diamond_raw      =  file(params.pep_ref)
 query_seq        =  file(params.queries_path)
 output           =  params.output
@@ -39,6 +39,8 @@ log.info"""
 
 process diamond_idx{
 
+    cpus params.htp_cores
+    memory params.ht_memory
     echo true
     storeDir "$params.DB_REF/Diamond"
     input:
@@ -79,9 +81,13 @@ if  ( params.diamond_idx == false  ){
 }
 
 
+
+
 process diamond{
 
     echo true
+    cpus params.htp_cores
+    memory params.ht_memory
     publishDir path: output , mode: 'move'
     
     input:
