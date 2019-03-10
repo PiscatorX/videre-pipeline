@@ -8,13 +8,17 @@ params.se_patt 		= "*_RNA_1.fq.gz"
 params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
-params.megahit 		= true
-params.metaspades 	= true
-params.quast 		= true
+params.megahit 		= false
+params.metaspades 	= false
+params.trinity          = false
+params.quast 		= false
+params.diamomd          = true
 params.cdHit_perc       = 0.98
 params.h_mem  		= 200
 params.m_mem  		= 10
 params.trimm            = false
+params.sortmerna_idx    = false
+params.sortmerna        = false
 DB_REF                  = System.getenv('DB_REF')
 //params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
@@ -328,10 +332,12 @@ if (params.trimm == false) {
     //this skips trimmomatic trimming
     reads_cp.into{cp_reads1; cp_reads2}        
     cp_reads1.map{ it[1][0] }
-             .into{fwd_reads1; fwd_reads2; fwd_reads3}
+        .into{fwd_reads1; fwd_reads2; fwd_reads3; fwd_reads4}
     cp_reads2.map{ it[1][1] }
-             .into{rev_reads1; rev_reads2; rev_reads3}          
+        .into{rev_reads1; rev_reads2; rev_reads3; fwd_read4}          
 }
+
+
 
 
 process megahit{
@@ -353,7 +359,7 @@ process megahit{
 
     output:
         set file("MegaHit"), file('time_megahit') into MegahitOut
-        file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3)
+    file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
 	
     script:
         fwd=all_fwd.join(",")
@@ -431,13 +437,12 @@ process metaSpades{
 
 
 
-
 process Trinity{
 
     echo true
     cpus params.htp_cores
-    memory params.h_mem
-    //errorStrategy 'ignore'
+    //memory params.h_mem
+    errorStrategy 'ignore'
     //publishDir path: output, mode: 'copy'
     storeDir output
     
@@ -448,7 +453,10 @@ process Trinity{
 
     output:
         set file("Trinity"), file('time_Trinity') into Trinity
-        file("Trinity/Trinity.fasta") into trinity_contigs 	
+        file("Trinity/Trinity.fasta") into trinity_contigs
+
+    when:
+	params.trinity ==  true
 
     script:
         fwd=all_fwd.join(",")
@@ -472,8 +480,8 @@ process Trinity{
 }
 
 
-// metaspades_contigs_1 = (params.metaspades) ?  metaspades_contigs1 : Channel.empty()
-// megahit_contigs_1 = (params.megahit) ? megahit_contigs1 :  Channel.empty()
+// // metaspades_contigs_1 = (params.metaspades) ?  metaspades_contigs1 : Channel.empty()
+// // megahit_contigs_1 = (params.megahit) ? megahit_contigs1 :  Channel.empty()
 
 
 
@@ -538,10 +546,12 @@ process build_sortmerRNA_IDX{
 	megahit_contigs3
   	file "${sortmerna_idx}*" into SortMeRNA_idx
         
-     
+    when:
+      params.sortmerna_idx  == true	
             
     script:
-	sortmerna_idx = file(params.sortmerna_db).getName().replaceFirst(/fasta/, "idx")
+        sortmerna_idx = file(params.sortmerna_db).getName().replaceFirst(/fasta/, "idx")
+
     
 """
     
@@ -573,7 +583,9 @@ process sortmerRNA{
     output:
      	file("sortmerna_aligned.fasta") into SortMeRNA_Aligned
         file("sortmerna_contigs.fasta") into SortMeRNA_Contigs
-       
+    
+    when:
+      params.sortmerna == true
             
     script:
 	sortmerna_idx = "${DB_REF}/SortMeRNA/" + file(params.sortmerna_db).getName().replaceFirst(/fasta/, "idx")
@@ -594,11 +606,82 @@ process sortmerRNA{
 }
 
 
+ 
 
+
+process bowtie_idx{
+
+    // echo true
+    cpus params.htp_cores
+    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
+    storeDir output
+    
+    memory params.m_mem
+    input:
+        //file("MegaHit.contigs.fa") from  megahit_contigs_3
+        file contig_fasta from megahit_contigs3	
+    output:
+	file("${bowtie_base}*") into bowtie_idx
+        val(bowtie_base) into idx_base
+	
+    script:
+	bowtie_base =  "bowtie_idx_${contig_fasta}".replaceFirst(/fasta/, "")
+      
+    
+"""
+    
+    bowtie-build  \
+    ${contig_fasta} \
+    ${bowtie_base}
+
+"""
+
+}
+
+
+
+process bowtie{
+
+     echo true
+    cpus params.htp_cores
+    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
+    storeDir output
+    
+    memory params.m_mem
+    
+    input:
+        file(all_fwd) from fwd_reads1.collect()
+        file(all_rev) from rev_reads1.collect()
+        file(idx_files) from bowtie_idx 
+    
+    output:
+	file("${bowtie_base}*") into bowtie_idx  
+	
+    script:
+	fwd=all_fwd.join(",")
+        rev=all_rev.join(",")
+
+      
+    
+"""
+
+    
+    // bowtie2-inspect [options]* 
+    // bowtie2  \
+    // -1 ${fwd} \
+    // -2 ${rev} \
+
+"""
+
+}
+
+
+
+    
 process cd_hit_est{
     
    //echo true
-   cpus  params.htp_cores
+    cpus  params.htp_cores
     publishDir path: "${output}/CD-Hit", mode: 'copy'
   
    input:
@@ -628,203 +711,111 @@ process cd_hit_est{
 
 
 
-// process salmon_index{
+process salmon_index{
     
-//     //echo  true
-//     publishDir path: output, mode: 'copy'
-//     input:
-// 	file(cd_hits) from cd_hits1.collect()
+    //echo  true
+    publishDir path: output, mode: 'copy'
+    input:
+	file(cd_hits) from cd_hits1.collect()
        
-//     output:
-//         file("Salmon") into salmon_index
+    output:
+        file("Salmon") into salmon_index
     
-// """
+"""
 
-//     salmon index -t  Cd_Hit_0.98.cd_hits -i  Salmon/transcripts_index --type quasi -p 4 -k 31     
+    salmon index -t  Cd_Hit_0.98.cd_hits -i  Salmon/transcripts_index --type quasi -p 4 -k 31     
     
 
-// """
+"""
 	
-// }
+}
 
 
 
 
-// process salmon_quant{
+process salmon_quant{
     
-//     echo  true
-//     publishDir path: output, mode: 'copy'
-//     input:
-// 	file(index) from salmon_index
-//         set pair_id, file(reads) from reads3
+    echo  true
+    publishDir path: output, mode: 'copy'
+    input:
+	file(index) from salmon_index
+        set pair_id, file(reads) from reads3
       
-//     output:
-//         file("Salmon") into Salmon_quant
+    output:
+        file("Salmon") into Salmon_quant
 
     
-//     script:
-//     	(left, right)=reads
+    script:
+    	(left, right)=reads
 
     
-// """
+"""
 
-//     salmon quant -l IU --index Salmon/transcripts_index -1 $left  -2 $right --validateMappings --meta  --output Salmon -p 4
+    salmon quant -l IU --index Salmon/transcripts_index -1 $left  -2 $right --validateMappings --meta  --output Salmon -p 4
 
-// """
+"""
 	
-// }
+}
 
 
 
     
-// process gmst{
+process gmst{
      
-//     echo  true
-//     publishDir path: "$output/Gmst", mode: 'copy'
-//     input:
-// 	file(cd_hits) from cd_hits2.collect()
+    echo  true
+    publishDir path: "$output/Gmst", mode: 'copy'
+    input:
+	file(cd_hits) from cd_hits2.collect()
 
-//     output:
-// 	file("Cd_Hit_0.98.cd_hits.*") into gmst_out
-// 	file("gms.log") into gms_log
+    output:
+	file("Cd_Hit_0.98.cd_hits.*") into gmst_out
+	file("gms.log") into gms_log
 		    
-// """
-//       gmst.pl --fnn -faa   Cd_Hit_0.98.cd_hits  --verbose
+"""
+      gmst.pl --fnn -faa   Cd_Hit_0.98.cd_hits  --verbose
          
 
-// """
-// //output sent to GhostKoala
+"""
+//output sent to GhostKoala
 
-// }
-
-
+}
 
 
-// process diamond{    
-//     echo true
-//     maxForks 1
-//     publishDir path: "$output/Diamond", mode: 'copy'
-//     input:
-//        file(nr_faa) from params.nr_faa
-//        file(reads_fna) from cd_hits3.collect()
 
-//     output:
-//        file('matches.dmnd') into diamond_matches
-//        file('nr.dmnd')      into diamond_ref
-//        file('diamond.unaligned') into diamond_un
-//        file('diamond.aligned') into diamond_al
+
+process diamond{
+    
+    echo true
+    publishDir path: "$output/Diamond", mode: 'copy'
+    input:
+       file(nr_faa) from params.nr_faa
+       file(reads_fna) from cd_hits3.collect()
+
+    output:
+       file('matches.dmnd') into diamond_matches
+       file('nr.dmnd')      into diamond_ref
+       file('diamond.unaligned') into diamond_un
+       file('diamond.aligned') into diamond_al
     
 
-// """
+"""
 
-//     diamond makedb --in $nr_faa -d nr --threads $params.threads -v
-//     diamond blastx -d nr \
-// --un diamond.unaligned \
-// --al diamond.aligned \
-// -q  Cd_Hit_0.98.cd_hits \
-// -o matches.dmnd \
-// --more-sensitive \
-// --evalue 1e-5 \
-// --top 90 \
-// --id 40 \
-// -v    
+    diamond makedb --in $nr_faa -d nr --threads $params.threads -v
 
-// """
+
+"""
     
-// }
+}
 
 
 
-// if ( params.readtype.toLowerCase() == "se") {
-
-// process megahit_SE{
-
-//     echo true
-//     publishDir path: output, mode: 'copy'
-//     input:
-//         val all_fwd from fwd_reads1.flatMap{ it.getName() }.collect()
-// 	file(reads) from TrimmedReads3.collect()
-	
-
-//     output:
-//         file("MegaHit_SE") into MegahitOut
-// 	file('MegaHit_SE/MegaHit.contigs.fa') into Contigs_fasta
-	    
-//     script:
-// 	f =  all_fwd.join(',')
-       
-
-	    
-	    
-// """       
-//      megahit -r $f -m  0.75  -t 4  -o MegaHit_SE --out-prefix MegaHit --verbose
-//      $TRINITY_HOME/util/TrinityStats.pl  MegaHit_SE/final.contigs.fa | tee MegaHit_SE/contig_Nx.stats 
-//      #megahit_toolkit contig2fastg 95 MegaHit_SE/intermediate_contigs/k95.contigs.fa >  MegaHit_SE/k95.fastg     
-
-// """
-	    
-// }
-
-
-
-// process trinity_SE{
-
-//      echo true
-//      publishDir path: "$output", mode: 'copy'
-//      input:
-//      val all_fwd from fwd_reads3.flatMap{ it.getName() }.collect()
-//      file(reads) from TrimmedReads4.collect()
-     
-//      output:
-//         file("Trinity_SE") into trinityOut
-
-
-//       script:
-//       f =  all_fwd.join(',')
-
-							     
-// """
-
-//    Trinity --seqType fq --max_memory 4G --no_normalize_reads \
-//           --single $f --output Trinity_SE --CPU $params.trinity_threads
-//    #$TRINITY_HOME/util/TrinityStats.pl  Trinity_SE/Trinity.fasta | tee Trinity_SE/contig_Nx.stats  
-//    #$TRINITY_HOME/util/misc/contig_ExN50_statistic.pl  Trinity_SE/transcripts.TMM.EXPR.matrix \
-// Trinity_SE/Trinity.fasta | tee trinity/Trinity.ExN50.stats
- 
-// """
-
-// }
-
-    
-// }else {
-
-
-// process Trinity{
-    
-
-//     echo true
-//     publishDir path: output, mode: 'copy'
-	
-//     input:
-// 	val all_fwd from fwd_reads3.flatMap{ it.getName() }.collect()
-// 	val all_rev from rev_reads3.flatMap{ it.getName() }.collect()
-// 	file(reads) from TrimmedReads4.collect()
-//     output:
-//          file("Trinity") into trinityOut
-
-//     script:
-// 	f =  all_fwd.join(',')
-// 	r =  all_rev.join(',')
-   
-// """
-
-//    Trinity --seqType fq --max_memory 4G --no_normalize_reads \
-//           --left $f  --right $r --output Trinity --CPU 4
-//    $TRINITY_HOME/util/TrinityStats.pl  Trinity/Trinity.fasta | tee Trinity/contig_Nx.stats  
-//    $TRINITY_HOME/util/misc/contig_ExN50_statistic.pl  Trinity/transcripts.TMM.EXPR.matrix \
-// Trinity_PE/Trinity.fasta | tee Trinity/Trinity.ExN50.stats
- 
-// """
-
-// }
-//}   
+    // diamond blastx -d nr \
+    // --un diamond.unaligned \
+    // --al diamond.aligned \
+    // -q  Cd_Hit_0.98.cd_hits \
+    // -o matches.dmnd \
+    // --more-sensitive \
+    // --evalue 1e-5 \
+    // --top 90 \
+    // --id 40 \
+    // -v    
