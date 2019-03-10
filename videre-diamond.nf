@@ -1,12 +1,11 @@
 #!/usr/bin/env  nextflow
 
-params.pep_ref   = "diamond/MMETSP1449.trinity_out_2.2.0.Trinity.pep.fasta"
+params.pep_ref   = "/home/andhlovu/DB_REF/doi:10.5281/zenodo.846380/Combined_reference_pep.fa"
 params.output    = "${PWD}/Diamond"
 params.DB_REF    = System.getenv('DB_REF')
 params.queries_path = "Videre.Out/MegaHit/"
 params.diamond_idx = false
 params.diamond   = true
-params.ht_memory = '100 GB'
 diamond_raw      =  file(params.pep_ref)
 query_seq        =  file(params.queries_path)
 output           =  params.output
