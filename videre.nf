@@ -1,15 +1,15 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
 params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
-params.megahit 		= true
-params.metaspades 	= false
+params.megahit 		= false
+params.metaspades 	= true
 params.trinity          = false
 params.quast 		= false
 params.cdHit_perc       = 0.98
@@ -47,6 +47,17 @@ if (! params.sortmerna_db ){
 }
 
 fileExt_glob = "*" + reads.tokenize(".")[-1]
+
+gz_ext = ( "."+reads.tokenize(".")[-1] == ".gz") ? "gz" : ""
+
+
+
+
+
+log.info """${gz_ext}"""
+
+
+
 output = params.output
 get_reads.into{reads1; reads2; reads3; readx; reads_cp}
 
@@ -213,8 +224,8 @@ process trimmomatic{
     
     output:
         set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
-	file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3)
-        file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3)	
+	file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3, fwd_reads4 )
+        file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3, rev_reads4)	
         set file("trim_${pair_id}.log"), file("${pair_id}.log")  into  trim_log
         file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
 	file('time_trimmomatic') into time
@@ -417,11 +428,12 @@ process metaSpades{
     
 
 """  
-    cat ${fwd} > fwd.fastq.gz
-    cat ${rev} > rev.fastq.gz 
+    cat ${fwd} > fwd.fastq${gz_ext}
+    cat ${rev} > rev.fastq ${gz_ext}
     /usr/bin/time -v  -o time_metaspades  metaspades.py \
-    -1 fwd.fastq \
-    -2 rev.fastq \
+    -1 fwd.fastq${gz_ext} \
+    -2 rev.fastq${gz_ext} \
+    --only-assembler \
     -t ${params.htp_cores} \
     -m ${params.h_mem} \
     -o Metaspades
@@ -431,7 +443,6 @@ process metaSpades{
 """
 
 }
-
 
 
 
@@ -649,12 +660,12 @@ process bowtie{
     memory params.m_mem
     
     input:
-        file(all_fwd) from fwd_reads1.collect()
-        file(all_rev) from rev_reads1.collect()
+        file(all_fwd) from fwd_reads4.collect()
+        file(all_rev) from rev_reads4.collect()
         file(idx_files) from bowtie_idx 
     
     output:
-	file("${bowtie_base}*") into bowtie_idx  
+	file("${bowtie_base}*") into bowtie_index  
 	
     script:
 	fwd=all_fwd.join(",")

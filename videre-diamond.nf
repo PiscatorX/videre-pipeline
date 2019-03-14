@@ -119,6 +119,8 @@ process diamond{
     --evalue 1e-5 \
     --top 90 \
     --id 40 \
+    --block-size 5 \
+    --index-chunks 1 \ 
     -v    
 
 """
