@@ -11,7 +11,10 @@
 if [ -z $1 ]
 
 then
-    echo ""No datafile file extension provided. See below for examples."
+    echo "Usage:"
+    echo "imicrobe_mmetsp datatype datafile"
+    echo
+    echo "No datafile file extension provided. See below for examples."
     echo ".cds.fa"
     echo ".cds.fa.uproc.kegg"
     echo ".cds.fa.uproc.kegg.annotated.tab"
@@ -29,6 +32,9 @@ fi
 if [ -z $2 ]
 
 then
+    echo "Usage:"
+    echo "imicrobe_mmetsp datatype datafile"
+    echo
     echo "No datafile provided!"
     echo "provide .tsv datafile with 2 columns: Sample_id mmetsp_id"
 fi
