@@ -417,8 +417,8 @@ process metaSpades{
     
 
 """  
-    cat ${fwd} > fwd.fastq
-    cat ${rev} > rev.fastq 
+    cat ${fwd} > fwd.fastq.gz
+    cat ${rev} > rev.fastq.gz 
     /usr/bin/time -v  -o time_metaspades  metaspades.py \
     -1 fwd.fastq \
     -2 rev.fastq \
