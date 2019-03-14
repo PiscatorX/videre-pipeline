@@ -3,14 +3,18 @@
 #this script recursively downloads the imicrobe MMETSP data using sample and data identifiers
 #http://datacommons.cyverse.org/browse/iplant/home/shared/imicrobe/projects/104/sample-attr.tab
 #https://de.cyverse.org/anon-files//iplant/home/shared/imicrobe/projects/104/samples/1662/MMETSP0982.pep.fa
+
+
+
 data_type=$1
+data_file=$2
 
 while read sample_id mmetsp_id
 do
 
   wget https://de.cyverse.org/anon-files//iplant/home/shared/imicrobe/projects/104/samples/${sample_id}/${mmetsp_id}.pep.fa
   
-done <  sample_id.map
+done <  $2
 
   # MMETSP0982-Undescribed-sp-CCMP2436.1.fastq
   # MMETSP0982-Undescribed-sp-CCMP2436.2.fastq
