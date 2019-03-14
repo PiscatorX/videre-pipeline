@@ -352,7 +352,7 @@ process megahit{
     
     //echo true
     cpus  params.htp_cores
-    memory ${params.h_mem}
+    memory params.h_mem
     publishDir path: output, mode: 'copy'
     
     storeDir output
