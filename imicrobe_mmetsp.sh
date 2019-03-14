@@ -1,14 +1,14 @@
-#!/usr/nin/bash
+#!/usr/bin/env bash
 
 #this script recursively downloads the imicrobe MMETSP data using sample and data identifiers
 #http://datacommons.cyverse.org/browse/iplant/home/shared/imicrobe/projects/104/sample-attr.tab
 
-$1=data_type
+data_type=$1
 
-while read sample_id,mmetsp_ref
+while read sample_id mmetsp_ref
 do
 
-  echo sample_id,mmetsp_ref
+  echo ${sample_id}, ${mmetsp_ref}
 
 done <  sample_id.map
 
