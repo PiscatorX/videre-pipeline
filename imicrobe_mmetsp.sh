@@ -12,7 +12,7 @@ if [ -z $1 ]
 
 then
     echo "Usage:"
-    echo "imicrobe_mmetsp datatype datafile"
+    echo "imicrobe_mmetsp ext datafile"
     echo
     echo "No datafile file extension provided. See below for examples."
     echo ".cds.fa"
@@ -33,7 +33,7 @@ if [ -z $2 ]
 
 then
     echo "Usage:"
-    echo "imicrobe_mmetsp datatype datafile"
+    echo "imicrobe_mmetsp ext datafile"
     echo
     echo "No datafile provided!"
     echo "provide .tsv datafile with 2 columns: Sample_id mmetsp_id"
