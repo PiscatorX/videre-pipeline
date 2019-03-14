@@ -11,6 +11,7 @@
 if [ -z $1 ]
 
 then
+    echo ""No datafile file extension provided. See below for examples."
     echo ".cds.fa"
     echo ".cds.fa.uproc.kegg"
     echo ".cds.fa.uproc.kegg.annotated.tab"
