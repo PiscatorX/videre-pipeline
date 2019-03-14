@@ -2,6 +2,7 @@
 
 #this script recursively downloads the imicrobe MMETSP data using sample and data identifiers
 #http://datacommons.cyverse.org/browse/iplant/home/shared/imicrobe/projects/104/sample-attr.tab
+#cut -f 1,2  sample-attr.tab >  sample_id.map
 #https://de.cyverse.org/anon-files//iplant/home/shared/imicrobe/projects/104/samples/1662/MMETSP0982.pep.fa
 
 
