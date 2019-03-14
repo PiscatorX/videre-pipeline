@@ -7,10 +7,8 @@
 
 
 
-data_type=$1
-data_file=$2
 
-if [ -z data_type ]
+if [ -z $1 ]
 
 then
     echo ".cds.fa"
@@ -27,12 +25,16 @@ exit 1
 
 fi
 
-if [ -z data_file ]
+if [ -z $2 ]
 
 then
     echo "No datafile provided!"
     echo "provide .tsv datafile with 2 columns: Sample_id mmetsp_id"
 fi
+
+data_type=$1
+data_file=$2
+
 
 
 
