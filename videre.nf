@@ -352,7 +352,8 @@ process megahit{
     
     //echo true
     cpus  params.htp_cores
-    //publishDir path: output, mode: 'copy'
+    memory ${params.h_mem}
+    publishDir path: output, mode: 'copy'
     
     storeDir output
 
@@ -402,10 +403,11 @@ process megahit{
 process metaSpades{
 
 
-    //echo true
+    echo true
     cpus  params.htp_cores
-    // publishDir path: output, mode: 'copy'
-    storeDir output
+    memory params.h_mem
+    publishDir path: output, mode: 'copy'
+    //storeDir output
 
 
     input:
