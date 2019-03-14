@@ -429,7 +429,7 @@ process metaSpades{
 
 """  
     cat ${fwd} > fwd.fastq${gz_ext}
-    cat ${rev} > rev.fastq ${gz_ext}
+    cat ${rev} > rev.fastq${gz_ext}
     /usr/bin/time -v  -o time_metaspades  metaspades.py \
     -1 fwd.fastq${gz_ext} \
     -2 rev.fastq${gz_ext} \
