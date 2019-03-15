@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
 params.megahit 		= false
@@ -46,7 +46,7 @@ if (! params.sortmerna_db ){
 
 fileExt_glob = "*" + reads.tokenize(".")[-1]
 
-gz_ext = ( "."+reads.tokenize(".")[-1] == ".gz") ? "gz" : ""
+gz_ext = ( "."+reads.tokenize(".")[-1] == ".gz") ? ".gz" : ""
 
 
 
@@ -351,8 +351,8 @@ if (params.trimm == false) {
 process megahit{
     
     //echo true
-    cpus  params.htp_cores
-    memory params.h_mem
+    cpus    params.htp_cores 
+    memory "${params.h_mem} GB"
     publishDir path: output, mode: 'copy'
     
     storeDir output
@@ -405,7 +405,7 @@ process metaSpades{
 
     echo true
     cpus  params.htp_cores
-    memory params.h_mem
+    memory "${params.h_mem} GB"
     publishDir path: output, mode: 'copy'
     //storeDir output
 
@@ -429,7 +429,7 @@ process metaSpades{
 
 """  
     cat ${fwd} > fwd.fastq${gz_ext}
-    cat ${rev} > rev.fastq ${gz_ext}
+    cat ${rev} > rev.fastq${gz_ext}
     /usr/bin/time -v  -o time_metaspades  metaspades.py \
     -1 fwd.fastq${gz_ext} \
     -2 rev.fastq${gz_ext} \
