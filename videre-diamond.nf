@@ -1,14 +1,17 @@
 #!/usr/bin/env  nextflow
 
-params.pep_ref   = "/home/andhlovu/DB_REF/doi:10.5281/zenodo.846380/Combined_reference_pep.fa"
+params.pep_ref   = "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
 params.output    = "${PWD}/Diamond"
 params.DB_REF    = System.getenv('DB_REF')
+params.taxonmap  = "/opt/DB_REF/mmetsp_pep/seq_taxid.map2"
+params.taxonnodes = "/opt/DB_REF/taxonomy/nodes.dmp" 
 params.queries_path = "Videre.Out/MegaHit/"
 params.diamond_idx = true
-params.diamond   = false
+params.diamond   =  true
 diamond_raw      =  file(params.pep_ref)
 query_seq        =  file(params.queries_path)
 output           =  params.output
+
 
 Channel.fromPath(params.queries_path +'/*')
        .into{dmnd_queries; dmnd_queries1 }
@@ -26,6 +29,7 @@ DB Ref          = ${params.DB_REF}
 Build DB        = ${params.diamond_idx}
 RUN Diamond     = ${params.diamond}
 
+
 Queries
 ======
 """
@@ -39,9 +43,9 @@ log.info"""
 process diamond_idx{
 
     cpus params.htp_cores
-    memory params.htp_memory
+    memory params.h_mem
     echo true
-    storeDir "$params.DB_REF/Diamond"
+    //storeDir "$params.DB_REF/Diamond"
     input:
         file diamond_raw
 
@@ -63,6 +67,8 @@ process diamond_idx{
     --in ${diamond_raw} \
     -d ${dmnd_base} \
     --threads ${params.htp_cores} \
+    --taxonmap ${params.taxonmap} \
+    --taxonnodes ${params.taxonnodes} \
     -v
      
 """
@@ -81,12 +87,11 @@ if  ( params.diamond_idx == false  ){
 
 
 
-
 process diamond{
 
     echo true
     cpus params.htp_cores
-    memory params.htp_memory
+    memory params.h_mem
     publishDir path: output , mode: 'move'
     
     input:
@@ -120,7 +125,7 @@ process diamond{
     --top 90 \
     --id 40 \
     --block-size 5 \
-    --index-chunks 1 \ 
+    --index-chunks 1 \
     -v    
 
 """
