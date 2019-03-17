@@ -13,9 +13,9 @@ def parse_fasta(fasta_seqs, outfile):
     
     print("accession\taccession.version\ttaxid\tgi",file=out, flush=True)
     for seq in seq_records:
-        seq_data = dict([ field.split("=") for field  in  seq.description.split("/")[1:]])
-        print("{0}\t{NCGR_PEP_ID}\t{TAXON_ID}\t0".format(seq.id,**seq_data))
-        
+        seq_data = dict([ field.strip().split("=") for field  in  seq.description.split("/")[1:]])
+        print("{0}\t{NCGR_PEP_ID}\t{TAXON_ID}\t0".format(seq.id,**seq_data),file=out, flush=True)
+
         
 if __name__ ==  '__main__':
     parser = argparse.ArgumentParser("generate taxa map file")
