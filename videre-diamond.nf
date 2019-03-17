@@ -1,16 +1,20 @@
 #!/usr/bin/env  nextflow
+ 
+//params.pep_ref	= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
+params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/pep.test"
+params.output 		= "${PWD}/Diamond"
+params.DB_REF 		= System.getenv('DB_REF')
+params.taxonmap  	= "/opt/DB_REF/mmetsp_pep/prot.accession2taxid.tmp1"
+params.taxonnodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
+//params.queries_path 	= "Videre.Out/MegaHit/"
+params.queries_path     =  "/opt/DB_REF/mmetsp_nt/"
+params.diamond_idx 	= true
+params.diamond   	= true
+diamond_raw       	= file(params.pep_ref)
+query_seq        	= file(params.queries_path)
+output           	= params.output
 
-params.pep_ref   = "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
-params.output    = "${PWD}/Diamond"
-params.DB_REF    = System.getenv('DB_REF')
-params.taxonmap  = "/opt/DB_REF/mmetsp_pep/seq_taxid.map2"
-params.taxonnodes = "/opt/DB_REF/taxonomy/nodes.dmp" 
-params.queries_path = "Videre.Out/MegaHit/"
-params.diamond_idx = true
-params.diamond   =  true
-diamond_raw      =  file(params.pep_ref)
-query_seq        =  file(params.queries_path)
-output           =  params.output
+
 
 
 Channel.fromPath(params.queries_path +'/*')
@@ -18,9 +22,13 @@ Channel.fromPath(params.queries_path +'/*')
 
 
 
+
 log.info"""
 
 Diamond ref     = ${diamond_raw}
+Taxon map       = ${params.taxonmap}
+Taxon nodes	= ${params.taxonnodes}
+Queries path	= ${params.queries_path}
 Ouput folder    = ${output}
 HTP cores       = ${params.htp_cores} 
 MTP cores       = ${params.mtp_cores} 
@@ -89,10 +97,9 @@ if  ( params.diamond_idx == false  ){
 
 process diamond{
 
-    echo true
     cpus params.htp_cores
     memory params.h_mem
-    publishDir path: output , mode: 'move'
+    publishDir path: output , mode: 'copy'
     
     input:
        file query_seq from dmnd_queries
@@ -120,16 +127,17 @@ process diamond{
     --al ${ref_tag}/diamond.aligned \
     -q ${query_seq} \
     -o ${ref_tag}/matches.dmnd \
+    -f 5  \
     --more-sensitive \
-    --evalue 1e-5 \
-    --top 90 \
     --id 40 \
+    --header \
+    --max-hsps 1\
+    --evalue 1e-5 \
     --block-size 5 \
     --index-chunks 1 \
-    -v    
+    --verbose    
 
 """
+
     
 }
-
-
