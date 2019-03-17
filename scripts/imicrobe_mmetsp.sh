@@ -39,7 +39,7 @@ then
     echo "provide .tsv datafile with 2 columns: Sample_id mmetsp_id"
 fi
 
-data_type=$1
+ext=$1
 data_file=$2
 
 
@@ -48,7 +48,7 @@ data_file=$2
 while read sample_id mmetsp_id
 do
 
-  wget https://de.cyverse.org/anon-files//iplant/home/shared/imicrobe/projects/104/samples/${sample_id}/${mmetsp_id}.pep.fa
+  wget https://de.cyverse.org/anon-files//iplant/home/shared/imicrobe/projects/104/samples/${sample_id}/${mmetsp_id}${ext}
   
 done <  $2
 
