@@ -16,9 +16,10 @@ def parse_fasta(fasta_seqs, outfile):
         try:
             seq_data = dict([ field.strip().split("=")[:2] for field  in  seq.description.split(" /")[1:]])
         except Exception as e:
-            print(seq.id,seq.description )
-            raise Exception(e)
-            
+            print(seq.id,seq.description)
+            print(e)
+            continue
+        
         print("{0}\t{DNA_ID}\t{TAXON_ID}\t0".format(seq.id,**seq_data),file=out, flush=True)
 
         
