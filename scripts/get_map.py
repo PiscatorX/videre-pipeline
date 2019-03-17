@@ -19,7 +19,7 @@ def parse_fasta(fasta_seqs, outfile):
         
 if __name__ ==  '__main__':
     parser = argparse.ArgumentParser("generate taxa map file")
-    parser.add_argument('fasta_seqs', help = "MMETSP sequence file")
+    parser.add_argument('fasta_seqs_file', help = "MMETSP sequence file")
     parser.add_argument("-o","--outfile", help = "MMETSP sequence file")
     args = parser.parse_args()
     fasta_seqs = args.fasta_seqs
