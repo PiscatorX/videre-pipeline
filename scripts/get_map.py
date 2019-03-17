@@ -22,7 +22,7 @@ if __name__ ==  '__main__':
     parser.add_argument('fasta_seqs_file', help = "MMETSP sequence file")
     parser.add_argument("-o","--outfile", help = "MMETSP sequence file")
     args = parser.parse_args()
-    fasta_seqs = args.fasta_seqs
+    fasta_seqs = args.fasta_seqs_file
     outfile = args.outfile
     parse_fasta(fasta_seqs, outfile)
     
