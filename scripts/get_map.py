@@ -14,10 +14,10 @@ def parse_fasta(fasta_seqs, outfile):
     print("accession\taccession.version\ttaxid\tgi",file=out, flush=True)
     for seq in seq_records:
         try:
-            seq_data = dict([ field.strip().split("=") for field  in  seq.description.split("/")[1:]])
-        execpt Exception as e:
+            seq_data = dict([ field.strip().split("=")[:2] for field  in  seq.description.split("/")[1:]])
+        except Exception as e:
             print(seq.id,seq.description )
-            raise Exception,e
+            raise Exception(e)
             
         print("{0}\t{DNA_ID}\t{TAXON_ID}\t0".format(seq.id,**seq_data),file=out, flush=True)
 
