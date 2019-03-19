@@ -5,6 +5,8 @@ import pprint
 import sys
 
 
+
+
 def parse_fasta(fasta_seqs, outfile):
 
     out = None
@@ -31,4 +33,6 @@ if __name__ ==  '__main__':
     fasta_seqs = args.fasta_seqs_file
     outfile = args.outfile
     parse_fasta(fasta_seqs, outfile)
-    
+
+#some data fail the parsing     
+#sed -i -e  's|Strain 621\/1 \/|Strain621\/1\/|g'  mmetsp_pep/MMETSP0151.pep.fa 
