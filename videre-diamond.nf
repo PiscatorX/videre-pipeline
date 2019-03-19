@@ -1,7 +1,7 @@
 #!/usr/bin/env  nextflow
 
 
-params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.nt.fa"
+params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
 params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
@@ -10,10 +10,10 @@ params.blast_taxanmap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_nt.map"
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
 //params.queries_path 	= "Videre.Out/MegaHit/"
 params.queries_path     =  "/home/drewx/Documents/videre-pipeline/query"
-params.diamond_idx 	= false
+params.diamond_idx 	= true
 params.diamond   	= false
-params.makeblastdb      = true
-params.megablast        = true
+params.makeblastdb      = false
+params.megablast        = false
 diamond_raw       	= file(params.pep_ref)
 //query_seq        	= file(params.queries_path)
 output           	= params.output
@@ -60,8 +60,9 @@ process diamond_idx{
     echo true
     cpus params.htp_cores
     memory params.h_mem
-    storeDir"$params.DB_REF/Diamond"
-
+    storeDir "$params.DB_REF/Diamond"
+    
+    
     input:
        file diamond_raw
 
@@ -110,7 +111,7 @@ process makeblastdb{
         params.makeblastdb == true
 
     script:
-        blastdb_base = blastdb_raw.baseName
+        blastdb = blastdb_raw.baseName
     
 
 """
@@ -119,16 +120,20 @@ process makeblastdb{
     -in ${blastdb_raw} \
     -input_type fasta \
     -dbtype nucl \
-    -out ${blastdb_base} \
-    -parse_seqids \
-    -taxid_map ${params.blast_taxanmap}\
-    
+    -out Blast/${blastdb} \
+    -parse_seqids 
+     
+    makembindex \
+    -input Blast/${blastdb} \
+    -iformat blastdb \
+    -old_style_index false
+
 
 """
 
 
 }
-
+//-taxid_map ${params.blast_taxanmap}\
 
 
 
@@ -204,7 +209,7 @@ process MegaBlast{
        val  blastdb_name from blastdb_BaseName
        
     output:
-	file(megablast_tag) into blastOut
+	file('Megablast') into blastOut
     
     when:
         params.megablast == true
@@ -213,20 +218,25 @@ process MegaBlast{
         megablast_tag  =  query_seqs.getName()+"_blast"
 
        	
-"""
 
-   mkdir -v ${megablast_tag}
+"""
+ 
+   blastdbcmd \
+   -db Blast/${blastdb_name}  \
+   -info
+
+   mkdir -v Megablast
    blastn \
    -query ${query_seqs} \
    -task megablast \
-   -db ${blastdb_name} \
+   -db ${params.DB_REF}/Blast/${blastdb_name} \
    -num_threads  ${params.htp_cores} \
    -outfmt 5 \
    -evalue 1e-5 \
-   -use_index true \
-   -out {megablast_tag}_blast.out \
-   -parse_deflines
-   
+   -out Megablast/${megablast_tag}_blast.out \
+   -parse_deflines \
+   -use_index true
+     
 """
 
     
