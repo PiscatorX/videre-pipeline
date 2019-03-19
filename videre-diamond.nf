@@ -173,7 +173,7 @@ process diamond{
     --un ${ref_tag}/diamond.unaligned \
     --al ${ref_tag}/diamond.aligned \
     -q ${query_seqs} \
-    -o ${diamond_tag}/${diamond_tag}_diamond.out \
+    -o ${diamond_tag}_diamond.out \
     -f 5  \
     --more-sensitive \
     --id 40 \
@@ -224,7 +224,7 @@ process MegaBlast{
    -outfmt 5 \
    -evalue 1e-5 \
    -use_index true \
-   -out ${megablast_tag}/${megablast_tag}_blast.out \
+   -out {megablast_tag}_blast.out \
    -parse_deflines
    
 """
