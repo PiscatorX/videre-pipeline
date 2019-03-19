@@ -1,12 +1,14 @@
 #!/usr/bin/env  nextflow
 
 
-params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
-params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
+//params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
+params.pep_ref 		= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
+//params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
+params.nt_ref           = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
-params.dmnd_taxamap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_pep.map"
-params.blast_taxanmap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_nt.map"
+//params.dmnd_taxamap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_pep.map"
+//params.blast_taxanmap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_nt.map"
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
 //params.queries_path 	= "Videre.Out/MegaHit/"
 params.queries_path     =  "/home/drewx/Documents/videre-pipeline/query"
@@ -30,8 +32,6 @@ Channel.fromPath(params.queries_path +'/*')
 log.info"""
 
 Diamond ref     = ${diamond_raw}
-Taxon map       = ${params.taxanmap}
-Taxon nodes	= ${params.taxanodes}
 Queries path	= ${params.queries_path}
 blastdb_raw     = ${blastdb_raw}
 Ouput folder    = ${output}
