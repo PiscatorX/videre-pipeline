@@ -14,27 +14,28 @@ def parse_fasta(fasta_seqs, outfile):
     seq_records = SeqIO.parse(fasta_seqs,"fasta")    
     out = open(outfile, "w") if outfile else sys.stdout
     
-    #print("accession\taccession.version\ttaxid\tgi",file=out, flush=True)
-    clean = lambda x : map(x.replace, ["ORGANISM"]).strip()
+    print("accession\taccession.version\ttaxid\tgi",file=out, flush=True)
     for seq in seq_records:
         try:
             seq_data = defaultdict(lambda : "")
             for field  in  seq.description.split(" /")[1:]:
                 k,v = field.strip().split("=")[:2]
                 seq_data[k] = clean(v)
-                #pprint.ppint(seq_data)
-                break
-            
-
-            
-        #     seq_data.update([  ])
         except Exception as e:
             print(seq.id,seq.description)
             print(e)
-            continue
-        # seq_data = 
-        # print("{0}\t{1}\t{2}\t0".format(seq.id,seq_data['DNA_ID'],seq_data['TAXON_ID']),file=out, flush=True)
+            continue 
+        print("{0}\t{1}\t{2}\t0".format(seq.id,seq_data['DNA_ID'],seq_data['TAXON_ID']),file=out, flush=True)
 
+        
+def clean(value):
+    #extensible 
+    #add stray strings to list
+    
+    for artifact in ["ORGANISM"]:
+      value = value.replace(artifact,'')
+    
+    return value.strip()
         
 if __name__ ==  '__main__':
     parser = argparse.ArgumentParser("generate taxa map file")
