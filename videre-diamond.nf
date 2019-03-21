@@ -1,4 +1,4 @@
-#!/usr/bin/env  nextflow
+dcd#!/usr/bin/env  nextflow
 
 
 //params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
@@ -7,17 +7,13 @@ params.pep_ref 		= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
 params.nt_ref           = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
-//params.dmnd_taxamap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_pep.map"
-//params.blast_taxanmap  	= "/opt/DB_REF/mmetsp_taxonomy/mmetsp_nt.map"
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
-//params.queries_path 	= "Videre.Out/MegaHit/"
 params.queries_path     =  "/home/drewx/Documents/videre-pipeline/query"
 params.diamond_idx 	= true
 params.diamond   	= false
 params.makeblastdb      = false
 params.megablast        = false
 diamond_raw       	= file(params.pep_ref)
-//query_seq        	= file(params.queries_path)
 output           	= params.output
 blastdb_raw             = file(params.nt_ref)
 
@@ -82,8 +78,6 @@ process diamond_idx{
     --in ${diamond_raw} \
     -d ${dmnd_base} \
     --threads ${params.htp_cores} \
-    --taxonmap ${params.taxamap} \
-    --taxonnodes ${params.taxannodes} \
     -v
      
 """
@@ -133,7 +127,7 @@ process makeblastdb{
 
 
 }
-//-taxid_map ${params.blast_taxanmap}\
+
 
 
 
