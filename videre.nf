@@ -367,8 +367,8 @@ process megahit{
 	
 
     output:
-        //set file("MegaHit"), file('time_megahit') into MegahitOut
-        //file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
+        set file("MegaHit"), file('time_megahit') into MegahitOut
+        file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
 	
     script:
         fwd=all_fwd.join(",")
