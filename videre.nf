@@ -1,20 +1,23 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/drewx/Documents/videre-pipeline/data"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/drewx/Documents/subsample"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
 params.readqc  		= false
-params.megahit 		= false
-params.metaspades 	= true
+params.megahit 		= true
+params.metaspades 	= false
 params.trinity          = false
 params.quast 		= false
 params.trimm            = false
 params.sortmerna_idx    = false
 params.sortmerna        = false
+params.bowtie           = false
+params.bowtie_idx       = false
+
 DB_REF                  = System.getenv('DB_REF')
 //params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
@@ -349,13 +352,11 @@ if (params.trimm == false) {
 
 process megahit{
     
-    //echo true
+    echo true
     cpus    params.htp_cores 
     memory "${params.h_mem} GB"
-    publishDir path: output, mode: 'copy'
-    
     storeDir output
-
+    
     
     input:
 	file(all_fwd) from fwd_reads1.collect()
@@ -366,8 +367,8 @@ process megahit{
 	
 
     output:
-        set file("MegaHit"), file('time_megahit') into MegahitOut
-    file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
+        //set file("MegaHit"), file('time_megahit') into MegahitOut
+        //file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
 	
     script:
         fwd=all_fwd.join(",")
@@ -388,7 +389,7 @@ process megahit{
     mv MegaHit/MegaHit.contigs.fa  MegaHit/MegaHit.fasta
     #$TRINITY_HOME/util/TrinityStats.pl  MegaHit/MegaHit.fa  | tee MegaHit/contig_Nx_megahit.stats 
     #megahit_toolkit contig2fastg 95 MegaHit/intermediate_contigs/k95.contigs.fa >  MegaHit/k95.fastg     
-
+    tree
 
 """
 //Will fail if k=95 is not reached	   
@@ -632,7 +633,11 @@ process bowtie_idx{
     output:
 	file("${bowtie_base}*") into bowtie_idx
         val(bowtie_base) into idx_base
-	
+    
+    when:
+	params.bowtie_idx == true
+   
+    
     script:
 	bowtie_base =  "bowtie_idx_${contig_fasta}".replaceFirst(/fasta/, "")
       
@@ -665,7 +670,10 @@ process bowtie{
     
     output:
 	file("${bowtie_base}*") into bowtie_index  
-	
+
+    when:
+	params.bowtie == true
+    
     script:
 	fwd=all_fwd.join(",")
         rev=all_rev.join(",")
