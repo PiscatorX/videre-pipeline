@@ -15,10 +15,10 @@ params.quast 		= false
 params.trimm            = false
 params.sortmerna_idx    = false
 params.sortmerna        = false
+params.bowtie_idx       = true
 params.bowtie           = false
-params.bowtie_idx       = false
-
 DB_REF                  = System.getenv('DB_REF')
+
 //params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 
@@ -621,7 +621,7 @@ process sortmerRNA{
 
 process bowtie_idx{
 
-    // echo true
+    echo true
     cpus params.htp_cores
     //publishDir path: "${output}/SortMeRNA", mode: 'copy'
     storeDir output
@@ -658,8 +658,7 @@ process bowtie{
 
      echo true
     cpus params.htp_cores
-    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
-    storeDir output
+    storeDir "${output}/Bowtie"
     
     memory params.m_mem
     
