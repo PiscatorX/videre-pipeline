@@ -1,18 +1,18 @@
-dcd#!/usr/bin/env  nextflow
+#!/usr/bin/env  nextflow
 
-
-//params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
-params.pep_ref 		= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
-//params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
-params.nt_ref           = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
+params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
+//params.pep_ref 	= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
+params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
+//params.nt_ref         = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
-params.queries_path     =  "/home/drewx/Documents/videre-pipeline/query"
+params.queries_path     =  "/home/drewx/Documents/videre-pipeline/Contigs"
 params.diamond_idx 	= true
-params.diamond   	= false
-params.makeblastdb      = false
-params.megablast        = false
+params.diamond   	= true
+params.makeblastdb      = true
+params.megablast        = true
+params.outformat        = 5
 diamond_raw       	= file(params.pep_ref)
 output           	= params.output
 blastdb_raw             = file(params.nt_ref)
@@ -38,7 +38,9 @@ DB Ref          = ${params.DB_REF}
 Build dmnd IDX  = ${params.diamond_idx}
 RUN Diamond     = ${params.diamond}
 Make BlastDB    = ${params.makeblastdb}      
-
+MegaBlast       = ${params.megablast}
+Out format      = ${params.outformat}
+       
 Queries
 ======
 """
@@ -89,23 +91,23 @@ process diamond_idx{
 
 process makeblastdb{
 
-    echo true
+    //echo true
     cpus params.htp_cores
     memory params.h_mem
-    storeDir "$params.DB_REF"
+    //storeDir "$params.DB_REF/Blast"
 
     input:
         file blastdb_raw 
 
     output:
-       file('Blast') into blastdb_idx
-       val  blastdb into blastdb_BaseName
+       file("${blastdb_base}*") into blastdb_idx
+       val  blastdb_base into blastdb_BaseName
 
     when:
         params.makeblastdb == true
 
     script:
-        blastdb = blastdb_raw.baseName
+        blastdb_base = blastdb_raw.baseName
     
 
 """
@@ -114,15 +116,17 @@ process makeblastdb{
     -in ${blastdb_raw} \
     -input_type fasta \
     -dbtype nucl \
-    -out Blast/${blastdb} \
+    -out ${blastdb_base} \
     -parse_seqids 
      
+
     makembindex \
-    -input Blast/${blastdb} \
+    -input ${blastdb_base} \
     -iformat blastdb \
     -old_style_index false
-
-
+     
+     tree
+    
 """
 
 
@@ -145,39 +149,38 @@ process diamond{
 
     cpus params.htp_cores
     memory params.h_mem
-    publishDir path: output , mode: 'copy'
+    publishDir path: "${output}/diamond" , mode: 'copy'
     
     input:
        file query_seqs from diamond_queries
-       file diamond_db from  diamond_idx
+       file diamond_db from diamond_idx
        val  dmnd_base from diamond_BaseName
        
     output:
-	file(diamond_tag) into diamond_Out
+	file("*") into diamond_Out
     
     when:
       params.diamond == true
 
     script:
-       diamond_tag  =  query_seqs.getName()+"_dmnd"
+       diamond_tag = query_seqs.getName()+"_dmnd"
 
+    
        	
 """
-
-   mkdir -v ${ref_tag} 
 
     diamond \
     blastx \
     -d ${dmnd_base}  \
-    --un ${ref_tag}/diamond.unaligned \
-    --al ${ref_tag}/diamond.aligned \
+    --un ${diamond_tag}.unaligned \
+    --al ${diamond_tag}.aligned \
     -q ${query_seqs} \
-    -o ${diamond_tag}_diamond.out \
-    -f 5  \
+    -o ${diamond_tag}.out \
+    -f ${params.outformat}  \
     --more-sensitive \
     --id 40 \
     --header \
-    --max-hsps 1\
+    --top 90 \
     --evalue 1e-5 \
     --block-size 5 \
     --index-chunks 1 \
@@ -187,7 +190,7 @@ process diamond{
 
     
 }
-
+//  --max-hsps 1\
 
 
 process MegaBlast{
@@ -195,7 +198,7 @@ process MegaBlast{
     echo true
     cpus params.htp_cores
     memory params.h_mem
-    publishDir path: output , mode: 'copy'
+    publishDir path: "${output}/MegaBlast" , mode: 'copy'
     
     input:
        file query_seqs from blast_queries
@@ -203,7 +206,7 @@ process MegaBlast{
        val  blastdb_name from blastdb_BaseName
        
     output:
-	file('Megablast') into blastOut
+	file("*") into blastOut
     
     when:
         params.megablast == true
@@ -216,18 +219,18 @@ process MegaBlast{
 """
  
    blastdbcmd \
-   -db Blast/${blastdb_name}  \
+   -db ${blastdb_name}  \
    -info
 
-   mkdir -v Megablast
+
    blastn \
    -query ${query_seqs} \
    -task megablast \
-   -db ${params.DB_REF}/Blast/${blastdb_name} \
+   -db ${blastdb_name} \
    -num_threads  ${params.htp_cores} \
-   -outfmt 5 \
+   -outfmt ${params.outformat} \
    -evalue 1e-5 \
-   -out Megablast/${megablast_tag}_blast.out \
+   -out ${megablast_tag}.out \
    -parse_deflines \
    -use_index true
      
