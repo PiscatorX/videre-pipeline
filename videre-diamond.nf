@@ -179,6 +179,7 @@ process diamond{
     -f ${params.outformat}  \
     --more-sensitive \
     --id 40 \
+    --max-hsps 1 \
     --header \
     --top 90 \
     --evalue 1e-5 \
@@ -190,7 +191,7 @@ process diamond{
 
     
 }
-//  --max-hsps 1\
+
 
 
 process MegaBlast{
@@ -222,16 +223,17 @@ process MegaBlast{
    -db ${blastdb_name}  \
    -info
 
-
    blastn \
    -query ${query_seqs} \
    -task megablast \
    -db ${blastdb_name} \
    -num_threads  ${params.htp_cores} \
    -outfmt ${params.outformat} \
+   -perc_identity 40 \
    -evalue 1e-5 \
-   -out ${megablast_tag}.out \
    -parse_deflines \
+   -max_hsps 1 \
+   -out ${megablast_tag}.out \
    -use_index true
      
 """
