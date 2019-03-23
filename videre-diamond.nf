@@ -1,13 +1,14 @@
-#!/usr/bin/env  nextflow
+#!/usr/bin/env nextflow
 
-params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
-//params.pep_ref 	= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
-params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
-//params.nt_ref         = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
+//params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
+params.pep_ref 	= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
+//params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
+params.nt_ref         = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
-params.queries_path     =  "/home/drewx/Documents/videre-pipeline/Contigs"
+//params.queries_path     =  "/home/drewx/Documents/videre-pipeline/Contigs"
+params.queries_path     =  "/home/andhlovu/Metatranscriptomics_DevOps/QueryX"
 params.diamond_idx 	= true
 params.diamond   	= true
 params.makeblastdb      = true
@@ -57,7 +58,7 @@ process diamond_idx{
 
     echo true
     cpus params.htp_cores
-    memory params.h_mem
+    memory "${params.h_mem} GB"
     storeDir "$params.DB_REF/Diamond"
     
     
@@ -93,8 +94,8 @@ process makeblastdb{
 
     //echo true
     cpus params.htp_cores
-    memory params.h_mem
-    //storeDir "$params.DB_REF/Blast"
+    memory "${params.h_mem} GB"
+    storeDir "$params.DB_REF/Blast"
 
     input:
         file blastdb_raw 
@@ -148,7 +149,7 @@ if  ( params.diamond_idx == false  ){
 process diamond{
 
     cpus params.htp_cores
-    memory params.h_mem
+    memory "${params.h_mem} GB"
     publishDir path: "${output}/diamond" , mode: 'copy'
     
     input:
@@ -183,7 +184,6 @@ process diamond{
     --header \
     --top 90 \
     --evalue 1e-5 \
-    --block-size 5 \
     --index-chunks 1 \
     --verbose    
 
@@ -198,7 +198,7 @@ process MegaBlast{
     
     echo true
     cpus params.htp_cores
-    memory params.h_mem
+    memory "${params.h_mem} GB"
     publishDir path: "${output}/MegaBlast" , mode: 'copy'
     
     input:

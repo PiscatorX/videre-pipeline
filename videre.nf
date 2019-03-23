@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-params.readsbase 	= "/home/drewx/Documents/subsample"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/drewx/Documents/subsample"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/Videre.Out"
 DB_REF                  = System.getenv('DB_REF')
 params.readqc  		= false
