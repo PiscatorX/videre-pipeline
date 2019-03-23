@@ -7,17 +7,19 @@ params.readsbase 	= "/home/drewx/Documents/subsample"
 params.se_patt 		= "*_RNA_1.fq.gz"
 params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
+DB_REF                  = System.getenv('DB_REF')
 params.readqc  		= false
 params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
 params.quast 		= false
-params.trimm            = false
+params.trimmomatic      = true
 params.sortmerna_idx    = false
 params.sortmerna        = false
 params.bowtie_idx       = true
-params.bowtie           = false
-DB_REF                  = System.getenv('DB_REF')
+params.bowtie           = true
+
+
 
 //params.sortmerna_db     = "${DB_REF}/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
@@ -231,7 +233,7 @@ process trimmomatic{
 	file('time_trimmomatic') into time
 
     when:
-        params.trimm == true
+        params.trimmomatic == true
 
     script:	
     	(fwd, rev)=reads
@@ -344,8 +346,13 @@ if (params.trimm == false) {
     cp_reads1.map{ it[1][0] }
         .into{fwd_reads1; fwd_reads2; fwd_reads3; fwd_reads4}
     cp_reads2.map{ it[1][1] }
-        .into{rev_reads1; rev_reads2; rev_reads3; fwd_read4}          
+        .into{rev_reads1; rev_reads2; rev_reads3; rev_reads4}          
 }
+
+
+
+
+
 
 
 
@@ -353,7 +360,7 @@ if (params.trimm == false) {
 process megahit{
     
     echo true
-    cpus    params.htp_cores 
+    cpus params.htp_cores 
     memory "${params.h_mem} GB"
     storeDir output
     
@@ -389,8 +396,7 @@ process megahit{
     mv MegaHit/MegaHit.contigs.fa  MegaHit/MegaHit.fasta
     #$TRINITY_HOME/util/TrinityStats.pl  MegaHit/MegaHit.fa  | tee MegaHit/contig_Nx_megahit.stats 
     #megahit_toolkit contig2fastg 95 MegaHit/intermediate_contigs/k95.contigs.fa >  MegaHit/k95.fastg     
-    tree
-
+    
 """
 //Will fail if k=95 is not reached	   
 
@@ -402,9 +408,8 @@ process megahit{
 
 process metaSpades{
 
-
     echo true
-    cpus  params.htp_cores
+    cpus params.htp_cores
     memory "${params.h_mem} GB"
     publishDir path: output, mode: 'copy'
     //storeDir output
@@ -520,6 +525,7 @@ process quast{
         contig3  = trinity_contigs.val.getName()
         all_contigs  = [contig1, contig2, contig3].join(" ")
 
+    
 """ 
 
    /usr/bin/time -v  -o time_quast quast\
@@ -623,74 +629,93 @@ process bowtie_idx{
 
     echo true
     cpus params.htp_cores
-    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
-    storeDir output
+    memory "${params.m_mem} GB"
+    storeDir "${DB_REF}/Bowtie"
     
     memory params.m_mem
     input:
         //file("MegaHit.contigs.fa") from  megahit_contigs_3
         file contig_fasta from megahit_contigs3	
     output:
-	file("${bowtie_base}*") into bowtie_idx
-        val(bowtie_base) into idx_base
-    
+	file("${bowtie2_base}*") into bowtie_idx
+        val(bowtie2_base) into bowtie2_idxbase
+        
     when:
 	params.bowtie_idx == true
-   
+    
     
     script:
-	bowtie_base =  "bowtie_idx_${contig_fasta}".replaceFirst(/fasta/, "")
+	bowtie2_base =  "bowtie2_${contig_fasta}".replaceFirst(/.fasta/, "")
       
     
 """
     
-    bowtie-build  \
+    bowtie2-build  \
+    --large-index \
+    --threads ${params.htp_cores} \
     ${contig_fasta} \
-    ${bowtie_base}
-
+    ${bowtie2_base}
+    bowtie2-inspect \
+    --large-in \
+    --summary \
+    ${bowtie2_base}  >  bowtie2_${contig_fasta}.idx_stats
+    
 """
 
 }
 
 
 
-process bowtie{
+process bowtie2bam{
 
-     echo true
+    echo true
     cpus params.htp_cores
-    storeDir "${output}/Bowtie"
-    
-    memory params.m_mem
+    storeDir "${output}/Bowtie2sam"
+    memory "${params.h_mem} GB"
     
     input:
-        file(all_fwd) from fwd_reads4.collect()
-        file(all_rev) from rev_reads4.collect()
-        file(idx_files) from bowtie_idx 
+        file(fwd_reads) from fwd_reads4
+        file(rev_reads) from rev_reads4
+        file(idx_files) from bowtie_idx
+        val bowtie2_base from bowtie2_idxbase
     
     output:
-	file("${bowtie_base}*") into bowtie_index  
-
+	file("${outbase}*") into bowtie_sam
+        file("${outbase}.un")   into bowtie_unaligned
+    
     when:
 	params.bowtie == true
-    
+
     script:
-	fwd=all_fwd.join(",")
-        rev=all_rev.join(",")
-
-      
+	fwd_name = fwd_reads.baseName
+        rev_name = rev_reads.baseName
+        outbase  = "${fwd_name}_${rev_name}"
+        
+    
+""" 
+    
+    bowtie2 \
+    --threads ${params.htp_cores} \
+    -x ${bowtie2_base} \
+    -1 ${fwd_reads} \
+    -2 ${rev_reads} \
+    --no-unal\
+    --time \
+    --un ${outbase}.un \
+    -S ${outbase}.sam
+    
+    samtools \
+    view \
+    ${outbase}.sam \
+    -F 4 \
+    -b \
+    -o ${outbase}.bam \
     
 """
 
-    
-    // bowtie2-inspect [options]* 
-    // bowtie2  \
-    // -1 ${fwd} \
-    // -2 ${rev} \
-
-"""
-
+//--un <path>        write unpaired reads that didn't align to <path>
+// --no-unal          suppress SAM records for unaligned reads
+//http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 }
 
 
-
-    
