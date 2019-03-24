@@ -15,11 +15,6 @@ params.gmst         = true
 
 
 
-
-
-
-
-
 Channel.fromPath(params.queries_path +'/*')
     .into{contig_queries; contig_queries1}
 
@@ -63,8 +58,9 @@ log.info"""
 
 process cd_hit_est{
     
-    //echo true
-    cpus  params.htp_cores
+    echo true
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
     publishDir path: "${output}/CD-Hit", mode: 'copy'
   
    input:
@@ -98,14 +94,16 @@ process cd_hit_est{
 
 process salmon_index{
     
-    //echo  true
+    echo true
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
     storeDir "${params.DB_REF}/Salmon"
     
     input:
 	file(cd_hits) from cd_hits1
     
     output:
-        file("Salmon_index") into salmon_index
+        file("salmon_index") into salmon_index
 
     when:
 	params.salmon_index == true
@@ -116,7 +114,7 @@ process salmon_index{
     --no-version-check \
     index \
     -t  ${cd_hits}  \
-    -i  Salmon_index \
+    -i  salmon_index \
     --type quasi \
     -p  ${params.htp_cores} 
 
@@ -134,13 +132,16 @@ process salmon_index{
 process salmon_quant{
     
     //echo  true
-    publishDir path: output, mode: 'copy'
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
+    publishDir path: output, mode: 'move'
+    
     input:
 	file(index) from salmon_index
         set pair_id, file(reads) from reads3
       
     output:
-        file("Salmon_${pair_id}") into Salmon_quant
+        file("salmon_${pair_id}") into salmon_quant
 
     when:
 	params.salmon_quant == true
@@ -153,15 +154,15 @@ process salmon_quant{
     salmon \
     quant \
     --no-version-check \
-    -l IU \
+    -l iu \
     -1 $left \
     -2 $right \
-    --index Salmon_index \
+    --index salmon_index \
     --minAssignedFrags 0 \
     --validateMappings \
     --writeUnmappedNames \
     --meta \
-    --output Salmon_${pair_id} \
+    --output salmon_${pair_id} \
     --discardOrphansQuasi \
     -p ${params.htp_cores}
 
@@ -172,10 +173,12 @@ process salmon_quant{
 
 
     
-process GeneMarkS{
+process GeneMarkST{
      
     //echo  true
-    publishDir path: "$output/GeneMarkS", mode: 'copy'
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
+    publishDir path: "$output/GeneMarkST", mode: 'move'
     input:
 	file(cd_hits) from cd_hits2
 
@@ -187,9 +190,11 @@ process GeneMarkS{
 	params.gmst == true
     
 """
+
       gmst.pl \
       --fnn \
       --faa \
+      --format GFF \
       ${cd_hits} \
       --verbose
       
