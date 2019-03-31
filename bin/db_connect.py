@@ -25,17 +25,20 @@ class DB_Connect(object):
         parser.add_argument('-f','--fix-id', dest = "fix_id", action="store_true", help ='remove description from fasta def line')
         self.args, unknown = parser.parse_known_args()
         self.db_name  = self.args.db_name
+        self.db_path, self.db_fname  = os.path.split(self.db_name)
         self.conx  = sqlite3.connect(self.db_name)  
         self.contigs  = self.args.contigs
-        if self.args.fix_id: 
+        
+        if self.args.fix_id:
+            if not self.args.contigs:
+                raise argparse.ArgumentTypeError('fix-id requires fasta contig file. See -h/--help')
             path, fname = os.path.split(self.args.contigs)
             fname, ext = os.path.splitext(fname)
             new_fname  = ''.join([fname+'_fx', ext])
             contigs_newfname = os.path.join(path, new_fname)
             self.contigs_newfname_fp  = open(contigs_newfname, 'w')
-            db_path, fname  = os.path.split(self.db_name)
             tsv = '.'.join([fname, 'tsv'])
-            tsv_fname = os.path.join(db_path, tsv)
+            tsv_fname = os.path.join(self.db_path, tsv)
             self.tsv_fp =  open(tsv_fname, 'w')
             
             
@@ -46,19 +49,27 @@ class DB_Connect(object):
         id_counts =  collections.defaultdict(int)
         contig_data = {}
         for contig in contig_records:
+            id_counts[contig.id]=+1
+            contig_id = contig.id+str(id_counts[contig.id]) if id_counts[contig.id] != 1 else contig.id 
             if self.args.fix_id:
-                contig_data = dict([field.split("=") for field in contig.description.split(" ",1)[1:][0].split(' ')])
-                id_counts=+1
+                contig.id = contig_id
+                descr = contig.description.split(" ",1)[1:][0]
+                contig_data = dict([field.split("=") for field in descr.split(' ')])
                 SeqIO.write(contig, self.contigs_newfname_fp,  "fasta")
-                self.contigs_newfname_fp.flush()
-            contig_data.update({'id': contig.id , 'description': contig.description, 'length': str(len(contig))})
+                self.contigs_newfname_fp.flush(contig_data)
+                print("{}\t{}".format(contig.id, descr),file=self.tsv_fp, flush = True) 
+            contig_data.update({'id': contig_id , 'description': contig.description, 'length': str(len(contig))})
             cols = ', '.join(contig_data.keys())
             values = ', '.join([ "'"+val+"'" for val in contig_data.values() ])
             sql = "INSERT INTO contigs({}) VALUES ({})".format(cols, values )
             self.conx.execute(sql)
         self.conx.commit()
+        if self.args.fix_id:
+            self.contigs_newfname_fp.close()
+            self.tsv_fp.close()
+           
 
-            
+        
     def init_contigTable(self):
         
         contigs_table = """
@@ -82,8 +93,7 @@ if __name__ == '__main__':
 
 
 
-#         TABLES = {
-        
+#         TABLES = {        
 #         TABLES['primers'] = (
 #              " CREATE TABLE `primers` ("
 #              " `gene` CHAR(255) NOT NULL,"
