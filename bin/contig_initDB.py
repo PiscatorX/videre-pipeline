@@ -20,7 +20,7 @@ class DB_Connect(object):
         """
         
         parser = argparse.ArgumentParser(description="""Connect to SQlite database""")
-        parser.add_argument('db_name', help ='SQLite database filename')
+        parser.add_argument('-d','--db_name', help ='SQLite database filename', required = True)
         parser.add_argument('-c','--contigs', help ='fasta file with contigs')
         parser.add_argument('-f','--fix-id', dest = "fix_id", action="store_true", help ='remove description from fasta def line')
         self.args, unknown = parser.parse_known_args()
@@ -56,7 +56,7 @@ class DB_Connect(object):
                 descr = contig.description.split(" ",1)[1:][0]
                 contig_data = dict([field.split("=") for field in descr.split(' ')])
                 SeqIO.write(contig, self.contigs_newfname_fp,  "fasta")
-                self.contigs_newfname_fp.flush(contig_data)
+                self.contigs_newfname_fp.flush()
                 print("{}\t{}".format(contig.id, descr),file=self.tsv_fp, flush = True) 
             contig_data.update({'id': contig_id , 'description': contig.description, 'length': str(len(contig))})
             cols = ', '.join(contig_data.keys())
@@ -84,8 +84,14 @@ class DB_Connect(object):
 
         
     def init_blastTables(self):
+        taxa_assignment  = """CREATE TABLE taxa_assignment(
+                              contig_id  VARCHAR(20),
+                              outcome VARCHAR(20),
+                              hit_id  VARCHAR(20),
+                              FOREIGN KEY(contig_id) REFERENCES contigs(id))""" 
 
-        hit_ids = """CREATE TABLE hit_ids(
+
+        hit_ids = """CREATE TABLE hit_def(
                      accession VARCHAR(20)  NOT NULL,
                      DNA_END INTNOT NULL,
                      DNA_ID VARCHAR(20)  NOT NULL,
@@ -93,40 +99,29 @@ class DB_Connect(object):
                      DNA_START INT   NOT NULL,
                      LENGTH INT NOT NULL,
                      ORGANISM VARCHAR,
-                     TAXON_ID INT NOT NULL)"""
-
-        queries = """CREATE TABLE queries(
-                     contig VARCHAR(20),
-                     description VARCHAR NOT NULL,
-                     length INT NOT NULL,
-                     FOREIGN KEY(contig) REFERENCES contigs(id))"""
-
+                     TAXON_ID INT NOT NULL)"""        
         
         hsps ="""CREATE TABLE hsps(
-                 hit_id VARCHAR(20), 
-                 align_length	INT NOT NULL,
+                 hit_id VARCHAR(20),
+                 align_length INT NOT NULL,
                  bits	REAL NOT NULL,
+                 contig_id VARCHAR(20),
                  expect	REAL NOT NULL,
                  frame	VARCHAR NOT NULL,
                  gaps	INT NOT NULL,
                  identities	INT NOT NULL,
-                 match	VARCHAR NOT NULL, 
                  mismatches	INT NOT NULL,
-                 num_alignments	INT NOT NULL,
                  perc_id	INT NOT NULL, 
                  positives	INT NOT NULL,
-                 query	VARCHAR NOT NULL,
                  query_end	INT NOT NULL,
                  query_start	INT NOT NULL,
-                 sbjct	VARCHAR NOT NULL,
                  sbjct_end	INT NOT NULL, 
                  sbjct_start	INT NOT NULL,
                  score	REAL NOT NULL,
-                 strand	VARCHAR NOT NULL,
                  FOREIGN KEY(hit_id) REFERENCES hit_ids(accession))"""
 
         
-        for sql_cmd in [hit_ids, queries, hsps]:
+        for sql_cmd in [hit_ids, taxa_assignment, hsps]:
             self.conx.execute(sql_cmd)
 
 
