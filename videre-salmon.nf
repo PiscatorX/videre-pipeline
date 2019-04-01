@@ -4,15 +4,13 @@ params.readsbase    = "/home/drewx/Documents/subsample"
 params.pe_patt      = "*_RNA_{1,2}.fq" 
 params.DB_REF 	    = System.getenv('DB_REF')
 params.queries_path = "Contigs"
-query_seq        =  file(params.queries_path)
-params.output    = "${PWD}/Salmon"
-params.cdHit_perc       = 0.98
-output           =  params.output
+query_seq           =  file(params.queries_path)
+params.output       = "${PWD}/Salmon"
+params.cdHit_perc   = 0.98
+output              =  params.output
 params.salmon_index = true
 params.salmon_quant = true
 params.gmst         = true
-
-
 
 
 Channel.fromPath(params.queries_path +'/*')
@@ -40,8 +38,7 @@ Low TP cores    	= ${params.ltp_cores}
 H_mem  			= ${params.h_mem}
 Salmon Index            = ${params.salmon_index}
 Salmon Quant            = ${params.salmon_quant}
-GMST                    = 
-params.gmst         = true
+GMST                    = ${params.gmst} 
 
 
 Reads
@@ -68,9 +65,10 @@ process cd_hit_est{
        
     
    output:
-       file "${hits_base}.cd_hits" into (cd_hits1, cd_hits2, cd_hits3)
+       file "${hits_base}.cd_hits" into cd_hits
        file "${hits_base}.cd_hits.clstr" into cdhit_clusters
-      
+       val  hits_base into cd_hits_base
+       
     script:
 	hits_base = "${contigs.baseName}"
 
@@ -90,7 +88,41 @@ process cd_hit_est{
 }
 
 
+process contig_initDB{
 
+    echo true
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
+    publishDir path: "${output}/CD-Hit", mode: 'copy'
+    
+    input:
+	file(cd_hits) from cd_hits
+        val hits_base from cd_hits_base
+	
+    output:	
+        file(outfile) into (cd_hits1, cd_hits2, cd_hits3)
+        file(tsv_file) into fasta_ref
+        file(sqlite_db) into (sqlite_db1, sqlite_db2)
+
+    script:
+	sqlite_db  = "${hits_base}X.db"
+        outfile    = "${hits_base}X.fasta"
+        tsv_file   = "${hits_base}X.db"
+   
+"""
+	
+   contig_initDB.py \
+   -d ${sqlite_db} \
+   -c ${cd_hits} \
+   -f\
+   -o ${outfile}
+   
+"""
+   
+}
+
+
+   
 
 process salmon_index{
     
@@ -122,7 +154,7 @@ process salmon_index{
 """
     
 //https://salmon.readthedocs.io/en/latest/salmon.html#using-salmon
-//https://salmon.readthedocs.io/en/latest/salmon.html#quantifying-in-mapping-based-mode
+//https://salmon.readthedocs.io/en/latest/salmon.html#quantifying-in-mapping-based-modex
    
 }
 
