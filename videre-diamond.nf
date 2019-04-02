@@ -1,19 +1,19 @@
 #!/usr/bin/env nextflow
 
-//params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
-params.pep_ref 	= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
-//params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
-params.nt_ref         = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
+params.pep_ref 		= "/opt/DB_REF/mmetsp_pep/MMETSP_test.pep.fa"
+//params.pep_ref 	= "/home/andhlovu/DB_REF/mmetsp_pep/Combined_MMETSP.pep.fa"
+params.nt_ref 		= "/opt/DB_REF/mmetsp_nt/MMETSP_test.nt.fa"
+//params.nt_ref         = "/home/andhlovu/DB_REF/mmetsp_nt/Combined_MMETSP.nt.fa"
 params.output 		= "${PWD}/Diamond"
 params.DB_REF 		= System.getenv('DB_REF')
 params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp" 
-//params.queries_path     =  "/home/drewx/Documents/videre-pipeline/Contigs"
-params.queries_path     =  "/home/andhlovu/Metatranscriptomics_DevOps/QueryX"
+params.queries_path     =  "/home/drewx/Documents/videre-pipeline/Contigs"
+//params.queries_path     =  "/home/andhlovu/Metatranscriptomics_DevOps/QueryX"
 params.diamond_idx 	= true
 params.diamond   	= true
 params.makeblastdb      = true
 params.megablast        = true
-params.outformat        = 5
+params.outformat        = 6
 diamond_raw       	= file(params.pep_ref)
 output           	= params.output
 blastdb_raw             = file(params.nt_ref)
@@ -126,7 +126,6 @@ process makeblastdb{
     -iformat blastdb \
     -old_style_index false
      
-     tree
     
 """
 
@@ -182,10 +181,13 @@ process diamond{
     --id 40 \
     --max-hsps 1 \
     --header \
-    --top 90 \
+    --top 10 \
+    --frameshift 15 \
+    --range-culling \
     --evalue 1e-5 \
     --index-chunks 1 \
     --verbose    
+
 
 """
 
