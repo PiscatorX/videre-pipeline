@@ -23,6 +23,7 @@ class DB_Connect(object):
         parser.add_argument('-d','--db_name', help ='SQLite database filename', required = True)
         parser.add_argument('-c','--contigs', help ='fasta file with contigs')
         parser.add_argument('-f','--fix-id', dest = "fix_id", action="store_true", help ='remove description from fasta def line')
+        parser.add_argument('-o','--outfile', help = "Output filename for fixed contig and tsv filename", required = True)
         self.args, unknown = parser.parse_known_args()
         self.db_name  = self.args.db_name
         self.db_path, self.db_fname  = os.path.split(self.db_name)
@@ -32,14 +33,11 @@ class DB_Connect(object):
         if self.args.fix_id:
             if not self.args.contigs:
                 raise argparse.ArgumentTypeError('fix-id requires fasta contig file. See -h/--help')
-            path, fname = os.path.split(self.args.contigs)
-            fname, ext = os.path.splitext(fname)
-            new_fname  = ''.join([fname+'_fx', ext])
-            contigs_newfname = os.path.join(path, new_fname)
-            self.contigs_newfname_fp  = open(contigs_newfname, 'w')
-            tsv = '.'.join([fname, 'tsv'])
-            tsv_fname = os.path.join(self.db_path, tsv)
-            self.tsv_fp =  open(tsv_fname, 'w')
+            fname, ext = os.path.splitext(self.args.outfile)
+            if not ext:
+                raise argparse.ArgumentTypeError('Contig file should have an *.fasta or *.fa extension')
+            self.contigs_newfname_fp  = open(self.args.outfile, 'w')
+            self.tsv_fp =  open('.'.join([fname, "tsv"]), 'w')
             
             
     def get_contig(self): 
@@ -54,11 +52,12 @@ class DB_Connect(object):
             if self.args.fix_id:
                 contig.id = contig_id
                 descr = contig.description.split(" ",1)[1:][0]
+                contig.description = ''
                 contig_data = dict([field.split("=") for field in descr.split(' ')])
                 SeqIO.write(contig, self.contigs_newfname_fp,  "fasta")
                 self.contigs_newfname_fp.flush()
                 print("{}\t{}".format(contig.id, descr),file=self.tsv_fp, flush = True) 
-            contig_data.update({'id': contig_id , 'description': contig.description, 'length': str(len(contig))})
+            contig_data.update({'id': contig_id , 'description': descr , 'length': str(len(contig))})
             cols = ', '.join(contig_data.keys())
             values = ', '.join([ "'"+val+"'" for val in contig_data.values() ])
             sql = "INSERT INTO contigs({}) VALUES ({})".format(cols, values )
