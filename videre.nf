@@ -1,11 +1,11 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/drewx/Documents/subsample"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/drewx/Documents/subsample"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+params.pe_patt 		= "*_RNA_{1,2}.fq" 
 params.output  		= "$PWD/Videre.Out"
 DB_REF                  = System.getenv('DB_REF')
 params.readqc  		= false
@@ -16,8 +16,6 @@ params.quast 		= false
 params.trimmomatic      = true
 params.sortmerna_idx    = false
 params.sortmerna        = false
-params.bowtie_idx       = true
-params.bowtie           = true
 
 
 
@@ -545,9 +543,7 @@ process quast{
 }
 
 
-
   
-
 process build_sortmerRNA_IDX{
 
     echo true
@@ -579,8 +575,6 @@ process build_sortmerRNA_IDX{
 """
 
 }
-
-
 
 
 process sortmerRNA{
@@ -619,103 +613,6 @@ process sortmerRNA{
     -m ${params.m_mem}
 """
 
-}
-
-
- 
-
-
-process bowtie_idx{
-
-    echo true
-    cpus params.htp_cores
-    memory "${params.m_mem} GB"
-    storeDir "${DB_REF}/Bowtie"
-    
-    memory params.m_mem
-    input:
-        //file("MegaHit.contigs.fa") from  megahit_contigs_3
-        file contig_fasta from megahit_contigs3	
-    output:
-	file("${bowtie2_base}*") into bowtie_idx
-        val(bowtie2_base) into bowtie2_idxbase
-        
-    when:
-	params.bowtie_idx == true
-    
-    
-    script:
-	bowtie2_base =  "bowtie2_${contig_fasta}".replaceFirst(/.fasta/, "")
-      
-    
-"""
-    
-    bowtie2-build  \
-    --large-index \
-    --threads ${params.htp_cores} \
-    ${contig_fasta} \
-    ${bowtie2_base}
-    bowtie2-inspect \
-    --large-in \
-    --summary \
-    ${bowtie2_base}  >  bowtie2_${contig_fasta}.idx_stats
-    
-"""
-
-}
-
-
-
-process bowtie2bam{
-
-    echo true
-    cpus params.htp_cores
-    storeDir "${output}/Bowtie2sam"
-    memory "${params.h_mem} GB"
-    
-    input:
-        file(fwd_reads) from fwd_reads4
-        file(rev_reads) from rev_reads4
-        file(idx_files) from bowtie_idx
-        val bowtie2_base from bowtie2_idxbase
-    
-    output:
-	file("${outbase}*") into bowtie_sam
-        file("${outbase}.un")   into bowtie_unaligned
-    
-    when:
-	params.bowtie == true
-
-    script:
-	fwd_name = fwd_reads.baseName
-        rev_name = rev_reads.baseName
-        outbase  = "${fwd_name}_${rev_name}"
-        
-    
-""" 
-    
-    bowtie2 \
-    --threads ${params.htp_cores} \
-    -x ${bowtie2_base} \
-    -1 ${fwd_reads} \
-    -2 ${rev_reads} \
-    --no-unal\
-    --time \
-    --un ${outbase}.un \
-    -S ${outbase}.sam
-    
-    samtools \
-    view \
-    ${outbase}.sam \
-    -F 4 \
-    -b \
-    -o ${outbase}.bam \
-    
-"""
-
-//--un <path>        write unpaired reads that didn't align to <path>
-// --no-unal          suppress SAM records for unaligned reads
-//http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 }
 
 
