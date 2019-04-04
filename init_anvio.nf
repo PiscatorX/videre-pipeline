@@ -115,6 +115,7 @@ process anvi_profile{
   -c ${contig_db} \
   --min-contig-length ${params.min_contig} \
   --output-dir $sample \
+  --num-threads ${params.mtp_cores} \
   --sample-name $sample
     
 """
@@ -136,15 +137,16 @@ process anvi_merge{
 	file(profile) from anvi_profiles.collect()
         file contig_db from contigDB2 
 
-    script:
-	
+    output:
+	file("samples_merged") into samples_merged
 
-    
 """
+
     anvi-merge */PROFILE.db  \
-    -o SAMPLES-MERGED \
-    -c ${contig_db}    
-    --sample-name
+    -o samples_merged \
+    -c ${contig_db} \
+    --sample-name St_Helena_Bay \
+    --enforce-hierarchical-clustering
 
 """
 

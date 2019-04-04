@@ -7,11 +7,12 @@ params.queries_path = "Contigs"
 query_seq           =  file(params.queries_path)
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
-output              =  params.output
+output              = params.output
+DB_REF		    = params.DB_REF
 params.bowtie_idx   = true
 params.bowtie       = true
-params.salmon_index = true
-params.salmon_quant = true
+params.salmon_index = false
+params.salmon_quant = false
 params.gmst         = true
 
 
@@ -24,7 +25,7 @@ reads = params.readsbase +'/'+ params.pe_patt
 
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
-       .into{reads1; reads2; readx}
+    .into{reads1; reads2; reads3; reads4; readx}
 
 
 
@@ -59,7 +60,7 @@ log.info"""
 
 process cd_hit_est{
     
-    echo true
+    //echo true
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
     publishDir path: "${output}/CD-Hit", mode: 'copy'
@@ -132,7 +133,7 @@ process contig_initDB{
 
 process bowtie_idx{
 
-    echo true
+    //echo true
     cpus params.htp_cores
     memory "${params.m_mem} GB"
     //storeDir "${DB_REF}/Bowtie"
@@ -141,9 +142,9 @@ process bowtie_idx{
     input:
         file contig_fasta from cd_hits_bowtie
     
-    output:
-	file("${bowtie2_base}*") into bowtie_idx
-        val(bowtie2_base) into bowtie2_idxbase
+    output:  
+        set bowtie2_base, file("${bowtie2_base}*") into bowtie_idx
+       
         
     when:
 	params.bowtie_idx == true
@@ -163,8 +164,10 @@ process bowtie_idx{
     --large-in \
     --summary \
     ${bowtie2_base}  >  bowtie2_${contig_fasta}.idx_stats
+
     
 """
+    
     
 }
 
@@ -173,16 +176,16 @@ process bowtie_idx{
 process bowtie2bam{
 
     echo true
+    tag "${sample}"
     cpus params.htp_cores
     //storeDir "${output}/Bowtie2sam"
-    publishDir "${output}/Bowtie2sam"
+    publishDir "${DB_REF}/Bowtie2sam", mode: "copyNoFollow"
     memory "${params.h_mem} GB"
 
     input:
-	set sample, file(reads) from reads1 
-        file(idx_files) from bowtie_idx
-        val bowtie2_base from bowtie2_idxbase
-    
+        set sample, file(reads) from reads3
+        set bowtie2_base, file(bowties_idx_files) from bowtie_idx.collect()
+         
     output:
 	file("${sample}*") into bowtie_sam
         file("${sample}.un")   into bowtie_unaligned
@@ -196,8 +199,8 @@ process bowtie2bam{
         rev_name = rev_reads.baseName
     
 """
- 
-    bowtie2 \
+
+   bowtie2 \
     --threads ${params.htp_cores} \
     -x ${bowtie2_base} \
     -1 ${fwd_reads} \
@@ -207,13 +210,16 @@ process bowtie2bam{
     --un ${sample}.un \
     -S ${sample}.sam
 
+
     samtools \
     view \
     ${sample}.sam \
     -F 4 \
     -b \
     -o ${sample}.bam 
-
+   
+   
+ 
 """
 //     o mySampleFiltered_1P.fq.gz - for paired forward reads
 //     o mySampleFiltered_1U.fq.gz - for unpaired forward reads
@@ -234,7 +240,7 @@ process salmon_index{
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
     //storeDir "${params.DB_REF}/Salmon"
-    publishDir "${params.DB_REF}/Salmon"
+    publishDir "${DB_REF}/Salmon"
 
     input:
 	file(cd_hits) from cd_hits_salmon
@@ -244,6 +250,7 @@ process salmon_index{
 
     when:
 	params.salmon_index == true
+        
 	    
 """
 
