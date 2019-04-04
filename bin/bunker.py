@@ -2,6 +2,7 @@
 
 from Bio.Blast import  NCBIXML
 from collections import Counter, OrderedDict
+from db_connect import DB_Connect 
 import itertools
 import argparse
 import pprint
@@ -9,61 +10,95 @@ import sys
 
 
 
-class  Bunker(object):
+class  Bunker(DB_Connect):
 
     """
 
       Parse and iterater through Blast results 
      
-     
-    """
-    def __init__(self, blast_xml, cut_off, assign_on ='TAXON_ID'):
+   """
+   
+    
+    def __init__(self, blast_xml, cut_off, verbose, assign_on ='TAXON_ID'):
+        
+       super().__init__()
        self.Blast_XML_Output = NCBIXML.parse(open(blast_xml))
        self.assign_on = assign_on
        self.cut_off = cut_off
        assert (1 >= self.cut_off and self.cut_off >=  0.5), "0.5 =< cut_off =< 1"  
-
+       self.verbose = verbose
+       self.hsps_remove = [ 'match', 'query', 'sbjct', 'strand', 'num_alignments']
+       self.hit_def_remove = ['ASSEMBLY_ACC', 'assembly_acc','NCGR_SAMPLE_ID']
        
     def blast_xml(self):
-               
+        
+       print_fields = OrderedDict.fromkeys(['query',
+                                            'hit_id',
+                                            'perc_id',
+                                            'align_length',
+                                            'mismatches',
+                                            'gaps',
+                                            'query_end',
+                                            'query_start',
+                                            'sbjct_start',
+                                            'sbjct_end',
+                                            'expect',
+                                            'bits',
+                                            'outcome',
+                                            'organism'])
+       header  = "\t".join(print_fields.keys())
+       print_format =  "{"+"}\t{".join(print_fields.keys())+"}"
+       if self.verbose:
+           print(header)
+            
        for  i  in itertools.count():
-
-           fields = ['query',
-                     'hit_id',
-                     'hsps'
-                        'identities',
-                        'align_length',
-                     
-           ]
            try:
                blast_record =  next(self.Blast_XML_Output)
                query = blast_record.query
-               align_ref = {}
+               align_ref = {'contig_id': query }
                assign_data  = {}
-               pprint.pprint(vars(blast_record))
                for alignment in blast_record.alignments:
-                   
+                   #get alignment data
                    align_ref[alignment.hit_id] = vars(alignment)
+                   #get_hitdef, implemented MMETSP data
                    hit_def = self.get_hitdef(alignment)
-                   assign_data[alignment.hit_id] = hit_def[self.assign_on]
                    #only one HSP!
                    align_ref[alignment.hit_id]['hit_def'] = hit_def
                    align_ref[alignment.hit_id]['hsps'] = vars(alignment.hsps[0])
-                   pprint.pprint(align_ref)
-                   exit(1)
-               pprint.pprint(assign_data)
-               outcome, field  = self.get_consesus(assign_data)
-               print(outcome, field)
-               exit(1)
-#Query ID, Subject ID, Percentage of identical matches, Alignment length, Number of mismatches, Number of gap openings, Start of alignment in query, End of alignment in query, Start of alignment in subject, End of alignment in subject, Expected value, Bit score
+                   identities = align_ref[alignment.hit_id]['hsps']['identities']
+                   align_length = align_ref[alignment.hit_id]['hsps']['align_length']
+                   align_ref[alignment.hit_id]['hsps'].update({'perc_id' : round(100*identities/float(align_length), 2),
+                                                            'mismatches' : align_length - identities})
+                   assign_data[alignment.hit_id] = hit_def[self.assign_on]
+                   if self.verbose:
+                       #updating printing fields
+                        print_fields.update(align_ref[alignment.hit_id]['hsps'])
+                        print_fields.update(align_ref[alignment.hit_id])
+                        #replace query sequence with query id
+                        print_fields['query'] = query.split()[0]
+               outcome, hit_ref, taxa_id = self.get_consesus(assign_data)
+               print_fields['outcome'] = outcome
                if (outcome == "consesus"):
-                   pass
-                  #print(outcome)
+                   align_ref['outcome']  = outcome
+                   align_ref["consesus"] = hit_ref
+                   self.loadDB(hit_ref, align_ref)
+                   organism, taxon_id = self.get_organism(align_ref, hit_ref, taxa_id)
+                   if self.verbose:
+                       print_fields['organism'] = organism
+                       print(print_format.format(**print_fields))
+               else:
                    
-               #print("{}\t{}\t{}".format(i,blast_record.query, outcome)
+                   for hit_ref, taxa_id  in assign_data.items():
+                       align_ref['outcome']  = outcome
+                       align_ref["consesus"] = hit_ref
+                       organism, taxon_id = self.get_organism(align_ref, hit_ref, taxa_id)
+                       self.loadDB(hit_ref, align_ref)
+                       if self.verbose:
+                           print_fields['organism'] = organism
+                           print(print_format.format(**print_fields))
            except StopIteration:
                break    
-
+           self.conx.commit()
 
 
            
@@ -87,7 +122,6 @@ class  Bunker(object):
             value = value.replace(artifact,'')
         return value.strip()
 
-
     
     def get_consesus(self, assign_data):
         
@@ -97,64 +131,60 @@ class  Bunker(object):
          
          for field, count in field_counts.items():
               if (count/float(n) >  self.cut_off):
-                  return ("consesus", field)
+                  hit_ref, tax_id = [ (hit, tax_id)  for hit,tax_id in assign_data.items()\
+                             if tax_id == field ][0]
+                  return ("consesus", hit_ref, tax_id)   
               
-         return ("mutiple_hits", None)
-         
+         return ("mutiple hits", None, None)
 
+     
+    def get_organism(self, align_ref, hit_id, taxon_ref):
+
+        organism = align_ref[hit_id]['hit_def'].get('ORGANISM', taxon_ref)            
+        taxon_id = align_ref[hit_id]['hit_def']['TAXON_ID']
+        assert taxon_id == taxon_ref,"hit_def error taxon ids not matching!"
+
+        return organism, taxon_id
+
+    def loadDB(self, hit_ref, align_ref):
+         contig_id = align_ref['contig_id']
+         accession = align_ref[hit_ref]['accession']
+         taxa_sql = """INSERT INTO taxa_assignment(
+                              contig_id, 
+                              outcome, 
+                              hit_id) 
+                              VALUES 
+                              ('{contig_id}',
+                                '{outcome}',
+                                '{consesus}')""".format(**align_ref)
+         
+         self.conx.execute(taxa_sql)
+         hit_def = align_ref[hit_ref]['hit_def']
+         
+         #update hsp keys and values for database insert
+         hsps = align_ref[hit_ref]['hsps']
+         
+         _ = [ hsps.pop(k, None) for k in self.hsps_remove ]
+         hsps.update({'contig_id' : align_ref['contig_id'], 'hit_id' : accession })
+         #update hit_def key and values for database insert
+         _ = [ hit_def.pop(k, None) for k in self.hit_def_remove ]
+         hit_def.update({'accession': accession }) 
+         table_entries = {'hit_def': hit_def, 'hsps': hsps}
+         for table,entry in table_entries.items():
+             cols = ', '.join(entry.keys())
+             values = ', '.join([ "'"+str(val)+"'" for val in entry.values() ])
+             sql = "INSERT INTO {0} ({1}) VALUES ({2})".format(table, cols, values )
+             pprint.pprint(sql)
+             self.conx.execute(sql)
+         
+         
      
 if  __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Parse  BLAST xml output""")
     parser.add_argument('blast_xml')
     parser.add_argument('-c','--consesus-cut-off', dest='cut_off', required=False, default=0.5,type=float)
-    
     parser.add_argument('-b','--batchsize', dest='batchsize', action='store', required=False, default=5,type=int)
-    args = parser.parse_args()
-    bunker = Bunker(args.blast_xml, args.cut_off)
+    parser.add_argument('-v','--verbose', action="store_true")
+    args, unknown = parser.parse_known_args()
+    bunker = Bunker(args.blast_xml, args.cut_off, args.verbose)
     bunker.blast_xml()
-
-#assign_taxid is scripted for  MMETSP defline
-#/NCGR_PEP_ID=MMETSP1392-20130828|78981_1 /ASSEMBLY_ACC=CAM_ASM_000868 /TAXON_ID=225041 /ORGANISM="Chlamydomonas chlamydogama, Strain SAG 11-48b" /LENGTH=446 /DNA_ID=CAMNT_0049618179 /DNA_START=1 /DNA_END=1339 / DNA_ORIENTATION=+
-
-# {'DNA_END': '662',
-#   'DNA_ID': 'CAMNT_0041872075',
-#   'DNA_ORIENTATION': '+',
-#   'DNA_START': '60',
-#   'LENGTH': '202',
-#   'ORGANISM': '"Emiliania huxleyi, Strain 374"',
-#   'TAXON_ID': '2903',
-#   'align_length': 48,
-#   'bits': 105.5,
-#   'expect': 9.9e-25,
-#   'frame': (-2, 0),
-#   'gaps': 0,
-#   'identities': 47,
-#   'match': 'PIVSIANIFEG CFVMNTCSHMTMGCVSTFWQSCGFKLNVCSTSVSPP',
-#   'num_alignments': None,
-#   'positives': 47,
-#   'query': 'PIVSIANIFEGRCFVMNTCSHMTMGCVSTFWQSCGFKLNVCSTSVSPP',
-#   'query_end': 322,
-#   'query_start': 178,
-#   'sbjct': 'PIVSIANIFEGSCFVMNTCSHMTMGCVSTFWQSCGFKLNVCSTSVSPP',
-#   'sbjct_end': 48,
-#   'sbjct_start': 1,
-#   'score': 262.0,
-#   'strand': (None, None)}
-
-# 'score',
-# 'bits',
-# 'expect',
-# 'num_alignments',
-# 'identities',
-# 'positives',
-# 'gaps',
-# 'align_length',
-# 'strand',
-# 'frame',
-# 'query',
-# 'query_start',
-# 'query_end',
-# 'match',
-# 'sbjct',
-# 'sbjct_start',
-# 'sbjct_end'
