@@ -1,19 +1,18 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-params.readsbase 	= "/home/drewx/Documents/subsample"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/andhlovu/data"
 params.se_patt 		= "*_RNA_1.fq.gz"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/Videre.Out"
 DB_REF                  = System.getenv('DB_REF')
-params.readqc  		= false
+params.readqc  		= true
+params.trimmomatic      = true
 params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
 params.quast 		= false
-params.trimmomatic      = true
 params.sortmerna_idx    = false
 params.sortmerna        = false
 
@@ -106,7 +105,7 @@ if (params.readqc) {
 process fastqc_RawReads{
 
     cpus 2 
-    memory 1G
+    memory "${params.l_mem} GB"
     publishDir path: output, mode: 'copy'
 	
     input:
@@ -137,7 +136,7 @@ process multiqc_RawReads{
     //echo true
     publishDir path: "$output/multiqc_RawReads", mode: 'copy'
     cpus params.ltp_cores
-    memory 2G
+    memory "${params.l_mem} GB"
 
     input:
 	file("RawReadsQC/**") from fastqc_results.collect()
@@ -213,7 +212,7 @@ process trimmomatic_SE {
 process trimmomatic{
     
     //echo true
-    memory params.m_mem
+    memory "${params.m_mem} GB"
     cpus  params.mtp_cores
     publishDir path: "$output/Trimmomatic", mode: 'copy'
    
@@ -273,7 +272,7 @@ process fastqc_TrimmomaticReads{
     //echo true
     publishDir path: output, mode: 'copy'
     cpus 2
-    memory 1G
+    memory "${params.m_mem} GB"
     
     input:
 	set pair_id, file(fwd), file(rev) from TrimmedReads1
@@ -454,7 +453,7 @@ process Trinity{
 
     echo true
     cpus params.htp_cores
-    //memory params.h_mem
+    //memory "${params.h_mem} GB"
     errorStrategy 'ignore'
     //publishDir path: output, mode: 'copy'
     storeDir output
@@ -549,7 +548,7 @@ process build_sortmerRNA_IDX{
     echo true
     cpus params.mtp_cores
     storeDir "${DB_REF}/SortMeRNA"
-    memory params.m_mem
+    memory "${params.m_mem} GB"
  
     input:
 	file sortmerna_db
@@ -583,8 +582,8 @@ process sortmerRNA{
     // cpus params.mtp_cores
     //publishDir path: "${output}/SortMeRNA", mode: 'copy'
     storeDir "${DB_REF}/SortMeRNA"
-    
-    memory params.m_mem
+    memory "${params.m_mem} GB"
+
     input:
 	val SortMeRNA_idx
         //file("MegaHit.contigs.fa") from  megahit_contigs_3
