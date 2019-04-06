@@ -5,7 +5,6 @@
 params.readsbase    = "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 params.pe_patt      = "*_trim_{1,2}P.fastq"
 params.DB_REF 	    = System.getenv('DB_REF')
-params.queries_path = "Contigs"
 query_seq           =  file(params.queries_path)
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
@@ -13,7 +12,6 @@ output              =  params.output
 //params.queries_path = "Contigs"
 params.queries_path = "/home/andhlovu/Metatranscriptomics_DevOps/megahit_contig/MegaHit/MegaHit.fasta"
 query_seq           =  file(params.queries_path)
-params.output       = "${PWD}/Salmon"
 output              = params.output
 DB_REF		    = params.DB_REF
 params.bowtie_idx   = true
