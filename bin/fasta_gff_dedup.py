@@ -27,16 +27,20 @@ class FastaGFF(object):
          fasta_records = SeqIO.parse(self.fasta_fp, "fasta")
          id_counts =  collections.defaultdict(int)
          fid_counts =  collections.defaultdict(int)
+         dedup_i = 1
          for seq  in fasta_records:
              id_counts[seq.id]+=1
              seq_id = seq.id+"_"+str(id_counts[seq.id]) if id_counts[seq.id] != 1 else seq.id
              if id_counts[seq.id] != 1:
                  self.duplicates[seq.id].append(seq_id)
-                 print("fasta duplicates: ", seq.id, seq_id)
+                 print("{}\tfasta duplicate: {}\t{}".format(dedup_i, seq.id, seq_id))
+                 dedup_i += 1
+                 seq.id = seq_id
              SeqIO.write(seq, self.fasta_out, "fasta")
              self.fasta_out.flush()
-
              
+         print()
+         dedup_j = 1   
          for track in self.gff_fp:
             track_data  = track.strip()
             if not track_data or track.startswith("#"):
@@ -50,12 +54,13 @@ class FastaGFF(object):
                     deduped_id = self.duplicates[feature_id].pop(0)
                     track = track.replace(feature_id,deduped_id)
                     print(track, file=self.gff_out, end="")
-                    print("gff duplicates: ", feature_id, deduped_id)
+                    print("{}\tgff duplicate: {}\t{}".format(dedup_j,feature_id, deduped_id))
+                    dedup_j += 1
                     self.gff_out.flush()
                     continue
-                
                 print(track, file=self.gff_out, end="")
-            
+        
+         print("\nDedup:\n{} fasta\n{} gff\n".format(dedup_i, dedup_j))   
             
 if __name__ == '__main__':
     fasta2dedup = FastaGFF()
