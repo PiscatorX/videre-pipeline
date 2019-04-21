@@ -2,10 +2,9 @@
 
 
 //params.readsbase    = "/home/drewx/Documents/subsample"
-params.readsbase    = "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase    = "Videre.Out/Trimmomatic/"
 params.pe_patt      = "*_trim_{1,2}P.fastq"
 params.DB_REF 	    = System.getenv('DB_REF')
-query_seq           =  file(params.queries_path)
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
 output              =  params.output
@@ -57,7 +56,6 @@ Reads
 
 readx.subscribe{  if(it instanceof List){ println it} }
 
-
 log.info"""
 ---------------------------------------------------------
 """
@@ -66,7 +64,7 @@ log.info"""
 process cd_hit_est{
    
     //echo true
-    cpus params.mtp_cores
+    cpus params.htp_cores
     memory "${params.m_mem} GB"
     publishDir path: "${output}/CD-Hit", mode: 'copy'
   

@@ -6,8 +6,9 @@ DB_REF		        = params.DB_REF
 params.output   	= "${PWD}/Anvio"
 params.bamdir		= "${DB_REF}/Bowtie2sam"
 params.bam_patt 	= "*.bam"
-params.contig  		= "/home/drewx/Documents/videre-pipeline/Salmon/CD-Hit/MegaHitX.fasta"
-params.gene_table 	= "/home/drewx/Documents/videre-pipeline/Salmon/GeneMarkST/MegaHitX.gene_tsv"
+//params.contig  	= "/home/drewx/Documents/videre-pipeline/Salmon/CD-Hit/MegaHitX.fasta"
+params.contig  		= "/home/andhlovu/Metatranscriptomics_DevOps/Salmon/CD-Hit/MegaHitX.fasta"
+params.gene_table 	= "/home/andhlovu/Metatranscriptomics_DevOps/Salmon/GeneMarkST/MegaHitX.gene_tsv"
 params.min_contig       = 100
 output 			= params.output 
 contig 			= file(params.contig)
@@ -21,7 +22,7 @@ Channel.fromPath(reads)
 
 
 process gen_contigDB{
-    label 'anvio'
+    //label 'anvio'
     echo true
     cpus params.ltp_cores
     memory "${params.m_mem} GB"
@@ -57,7 +58,7 @@ process gen_contigDB{
 
 process init_bam{
 
-    label  'anvio'
+    //label  'anvio'
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
     publishDir path: output, mode: 'copyNoFollow'
@@ -87,10 +88,10 @@ process init_bam{
 
 process anvi_profile{
 
-    label 'anvio'
+    //label 'anvio'
     echo true
     cpus params.mtp_cores
-    memory "${params.m_mem} GB"
+    memory "${params.h_mem} GB"
     publishDir path: output, mode: 'copy'
     
     input:
@@ -127,7 +128,7 @@ process anvi_profile{
 
 process anvi_merge{
 
-    label 'anvio'
+    //label 'anvio'
     echo true
     cpus params.mtp_cores
     memory "${params.m_mem} GB"

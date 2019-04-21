@@ -11,8 +11,8 @@ params.taxanodes 	= "/opt/DB_REF/taxonomy/nodes.dmp"
 params.queries_path     =  "/home/andhlovu/Metatranscriptomics_DevOps/QueryX"
 params.diamond_idx 	= true
 params.diamond   	= true
-params.makeblastdb      = true
-params.megablast        = true
+params.makeblastdb      = false
+params.megablast        = false
 params.outformat        = 5
 diamond_raw       	= file(params.pep_ref)
 output           	= params.output
@@ -181,7 +181,7 @@ process diamond{
     --id 40 \
     --max-hsps 1 \
     --header \
-    --top 50 \
+    --top 10 \
     --frameshift 15 \
     --range-culling \
     --evalue 1e-5 \
