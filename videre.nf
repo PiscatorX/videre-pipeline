@@ -1,12 +1,14 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
-params.readsbase 	= "/home/drewx/Documents/subsample-tiny"
-params.sortmerna_db     = "${DB_REF}/SILVA/sel_SILVA.fasta"
-params.sortmerna_idx    = "${DB_REF}/SortMeRNA/sel_SILVA.idx"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/drewx/Documents/subsample-tiny"
+//params.readsbase        = "/home/andhlovu/subsample"
+//params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
+params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
+params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
 //params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
-params.pe_patt 		= "*_RNA_{1,2}.fq" 
+params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/videre.Out"
 sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
@@ -14,10 +16,10 @@ output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
 params.fastqc  		= true
 params.trimmomatic      = true
-params.sortmerna_index  = true
+params.sortmerna_index  = false
 params.megahit 		= true
-params.metaspades 	= true
-params.trinity          = true
+params.metaspades 	= false
+params.trinity          = false
 
 
 reads                   = params.readsbase +'/'+ params.pe_patt
@@ -69,9 +71,7 @@ FastQC  		= ${params.fastqc}
 Trimmomatic 		= ${params.trimmomatic}
 MegaHit 		= ${params.megahit}          
 Metaspades 	        = ${params.metaspades}       
-SortmeRNA_idx           = ${params.sortmerna_idx}  
-SortmeRNA               = ${params.sortmerna}      
-Quast 		        = ${params.quast}           
+SortmeRNA_idx           = ${params.sortmerna_idx}         
 
 Assemblers
 Megahit			= ${params.megahit}
@@ -110,7 +110,7 @@ process fastqc_RawReads{
 
 
 """
-   mkdir -p RawReadsQC/$pair_id 
+   mkdir -p RawReadsQC/${pair_id} 
    fastqc \
    --extract \
    -f fastq \
@@ -121,10 +121,11 @@ process fastqc_RawReads{
 }
 
 
+
 process multiqc_RawReads{
 
     //echo true
-    publishDir path: "$output/multiqc_RawReads", mode: 'copy'
+    publishDir path: "$output/multiqc_RawReads", mode: 'move'
     cpus params.ltp_cores
     memory "${params.l_mem} GB"
 
@@ -164,7 +165,7 @@ process trimmomatic{
     echo true
     memory "${params.m_mem} GB"
     cpus  params.mtp_cores
-    publishDir path: "$output/Trimmomatic", mode: 'copy'
+    publishDir path: "$output/trimmomatic", mode: 'copy'
    
     
     input:
@@ -261,8 +262,8 @@ process sortmerRNA{
 
     //echo true
     cpus params.htp_cores
-    publishDir path: "${output}/SortMeRNA", mode: 'copy'
-    publishDir "${DB_REF}/SortMeRNA"
+    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
+    publishDir path:"${DB_REF}/SortMeRNA"
     memory "${params.m_mem} GB"
 
     input:
@@ -290,7 +291,8 @@ process sortmerRNA{
   sortmerna \
   --ref  ${sortmerna_db},${sortmerna_idx} \
   --reads ${pair_id}.fastq\
-  --paired_in \
+  
+  --paired_out \
   --aligned sortmerna_aligned \
   --other mRNA \
   -a ${params.htp_cores} \
@@ -304,7 +306,12 @@ process sortmerRNA{
   ${reverse_reads} \
   ${pair_id}.fastq
  
-  unmerge-paired-reads.sh \
+  reformat.sh \
+  in=mRNA.fastq \
+  out1=${forward_reads} \
+  out2=${reverse_reads}
+
+  #unmerge-paired-reads.sh \
   mRNA.fastq \
   ${forward_reads} \
   ${reverse_reads}
@@ -348,14 +355,15 @@ process multiqc_filtered{
     
     //echo true
     cpus params.ltp_cores
-    publishDir path: "$output/multiqc_filtered", mode: 'copy'
+    memory "${params.m_mem} GB"
+    publishDir path: "$output/multiqc_filtered", mode: 'move'
     
     input:
         file("filtered/*") from fastqc_results2.collect()
         file('*') from trim_log.collect()
 	
     output:
-    	set file("multiqc*")  into multiqc_report2
+    	file("multiqc*")  into multiqc_report2
 
     when:
         params.fastqc == true
@@ -364,9 +372,9 @@ process multiqc_filtered{
 
    mv -v  filtered/*/*_fastqc*  filtered/
    
-   fastqc_combine.pl\
+   fastqc_combine.pl \
    -v\
-   --out  filtered\
+   --out  filtered \
    --skip\
    --files  'filtered/*_fastqc'
 
@@ -399,7 +407,7 @@ process megahit{
     echo true
     cpus params.htp_cores 
     memory "${params.h_mem} GB"
-    publishDir output
+    publishDir path: output, mode: 'move'
     
     
     input:
@@ -421,7 +429,7 @@ process megahit{
 
 """ 
   
-    /usr/bin/time -v  -o time_megahit  megahit \
+    megahit \
     -1 $fwd \
     -2 $rev \
     -t ${params.htp_cores} \
@@ -429,7 +437,7 @@ process megahit{
     -o MegaHit\
     --out-prefix MegaHit \
     --verbose
-    mv MegaHit/MegaHit.contigs.fa  MegaHit/MegaHit.fasta
+   
     
 """
 //Will fail if k=95 is not reached	   
@@ -440,84 +448,84 @@ process megahit{
 
 
 
-process metaSpades{
+// process metaSpades{
 
-    echo true
-    cpus params.htp_cores
-    memory "${params.h_mem} GB"
-    publishDir path: output, mode: 'move'
-    //storeDir output
+//     echo true
+//     cpus params.htp_cores
+//     memory "${params.h_mem} GB"
+//     publishDir path: output, mode: 'move'
+//     //storeDir output
 
 
-    input:
-	file(all_fwd) from mRNA_fwd2.collect()
-        file(all_rev) from mRNA_rev2.collect()
+//     input:
+// 	file(all_fwd) from mRNA_fwd2.collect()
+//         file(all_rev) from mRNA_rev2.collect()
     
-    when:
-        params.metaspades == true
+//     when:
+//         params.metaspades == true
 	
 
-    output:
-	set file("Metaspades"), file("time_metaspades") into MetaspadesOut
+//     output:
+// 	set file("Metaspades"), file("time_metaspades") into MetaspadesOut
         
 	
-    script:
-	 fwd=all_fwd.join(" ")
-         rev=all_rev.join(" ")
+//     script:
+// 	 fwd=all_fwd.join(" ")
+//          rev=all_rev.join(" ")
     
 
-"""  
-    cat ${fwd} > fwd.fastq${gz_ext}
-    cat ${rev} > rev.fastq${gz_ext}
-    /usr/bin/time -v  -o time_metaspades  metaspades.py \
-    -1 fwd.fastq${gz_ext} \
-    -2 rev.fastq${gz_ext} \
-    --only-assembler \
-    -t ${params.htp_cores} \
-    -m ${params.h_mem} \
-    -o Metaspades
+// """  
+//     cat ${fwd} > fwd.fastq${gz_ext}
+//     cat ${rev} > rev.fastq${gz_ext}
+//     /usr/bin/time -v  -o time_metaspades  metaspades.py \
+//     -1 fwd.fastq${gz_ext} \
+//     -2 rev.fastq${gz_ext} \
+//     --only-assembler \
+//     -t ${params.htp_cores} \
+//     -m ${params.h_mem} \
+//     -o Metaspades
      
-"""
+// """
 
-}
+// }
 
 
 
-process Trinity{
+// process Trinity{
 
-    echo true
-    cpus params.htp_cores
-    memory "${params.h_mem} GB"
-    publishDir path: output, mode: 'move'
-    storeDir output
+//     echo true
+//     cpus params.htp_cores
+//     memory "${params.h_mem} GB"
+//     publishDir path: output, mode: 'move'
+//     //storeDir output
     
-    input:
-	file(all_fwd) from mRNA_fwd3.collect()
-        file(all_rev) from mRNA_rev3.collect()
+//     input:
+// 	file(all_fwd) from mRNA_fwd3.collect()
+//         file(all_rev) from mRNA_rev3.collect()
 
-    output:
-        set file("Trinity"), file('time_Trinity') into Trinity
-        file("Trinity/Trinity.fasta") into trinity_contigs
+//     output:
+//         set file("Trinity"), file('time_Trinity') into Trinity
+//         file("Trinity/Trinity.fasta") into trinity_contigs
 
-    when:
-	params.trinity ==  true
+//     when:
+// 	params.trinity ==  true
 
-    script:
-        fwd=all_fwd.join(",")
-        rev=all_rev.join(",")
+//     script:
+//         fwd=all_fwd.join(",")
+//         rev=all_rev.join(",")
 	   
-"""        
-     /usr/bin/time -v  -o time_Trinity  Trinity\
-     --seqType fq\
-     --left  $fwd\
-     --right $rev\
-     --max_memory ${params.h_mem}G \
-     --CPU ${params.htp_cores}\
-     --output Trinity\
-     --verbose
+// """        
+//      /usr/bin/time -v  -o time_Trinity  Trinity\
+//      --seqType fq\
+//      --left  $fwd\
+//      --right $rev\
+//      --max_memory ${params.h_mem}G \
+//      --CPU ${params.htp_cores}\
+//      --output Trinity\
+//      --verbose
     
 
-"""
+// """
 
-}
+// }
 
