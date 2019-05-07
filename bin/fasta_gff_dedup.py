@@ -27,7 +27,7 @@ class FastaGFF(object):
          fasta_records = SeqIO.parse(self.fasta_fp, "fasta")
          id_counts =  collections.defaultdict(int)
          fid_counts =  collections.defaultdict(int)
-         dedup_i = 1
+         dedup_i = 0
          for seq  in fasta_records:
              id_counts[seq.id]+=1
              seq_id = seq.id+"_"+str(id_counts[seq.id]) if id_counts[seq.id] != 1 else seq.id
@@ -40,7 +40,7 @@ class FastaGFF(object):
              self.fasta_out.flush()
              
          print()
-         dedup_j = 1   
+         dedup_j = 0   
          for track in self.gff_fp:
             track_data  = track.strip()
             if not track_data or track.startswith("#"):
