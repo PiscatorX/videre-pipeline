@@ -1,38 +1,34 @@
 #!/usr/bin/env nextflow
 
+/*
+ * Copyright (c) 2019, Andrew Ndhlovu.
+ *
+ * author Andrew Ndhlovu <drewxdvst@outlook.com> 
+ *  
+ */
+
 params.readtype		= "pe"
 //params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
-//params.readsbase 	= "/home/drewx/Documents/subsample-tiny"
-<<<<<<< HEAD
-params.readsbase        = "/home/andhlovu/subsample"
-=======
-//params.readsbase      = "/home/andhlovu/subsample"
-params.readsbase	= "/home/drewx/Documents/sea-biome/reads.gz"
->>>>>>> ca49db5d8cab6c406e1c80c603fc9066282a59ad
-//params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
-params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
+params.readsbase       = "/home/drewx/Documents/subsample"
+//params.readsbase        = "/home/andhlovu/subsample"
+params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
+//params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
 //params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
-params.pe_patt 		= "*_{1,2}.fq.gz"
-//params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+//params.pe_patt 		= "*_{1,2}.fq.gz"
+params.pe_patt 		= "*_{1,2}.fq"
 params.output  		= "$PWD/videre.Out"
 sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
 output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
-params.fastqc  		= true
-params.trimmomatic      = true
-<<<<<<< HEAD
-params.sortmerna_index  = true
-params.megahit 		= true
-=======
+params.fastqc  		= false
+params.trimmomatic      = false
 params.sortmerna_index  = false
 params.sortmerna        = false
-params.megahit 		= false
->>>>>>> ca49db5d8cab6c406e1c80c603fc9066282a59ad
+params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
-
 
 reads                   = params.readsbase +'/'+ params.pe_patt
 fileExt_glob            = "*" + reads.tokenize(".")[-1]
@@ -45,16 +41,12 @@ if (! sortmerna_db.endsWith('fasta')){
 
 }
 
-
-
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
        .into{reads1;
 	    reads2;
 	    reads3;
 	    reads4;
-	    reads5;
-	    reads6;
 	    readsx}
 
 
@@ -75,12 +67,12 @@ High memory  		= ${params.h_mem}
 Medium memory           = ${params.m_mem}  	 
 Low memory              = ${params.l_mem}  	   
 
-
 FastQC  		= ${params.fastqc}           
 Trimmomatic 		= ${params.trimmomatic}
 MegaHit 		= ${params.megahit}          
 Metaspades 	        = ${params.metaspades}       
-SortmeRNA_idx           = ${params.sortmerna_idx}         
+SortmeRNA_idx           = ${params.sortmerna_index}         
+SortmeRNA               = ${params.sortmerna}
 
 Assemblers
 Megahit			= ${params.megahit}
@@ -101,8 +93,6 @@ log.info"""
 """
 
 
-
-
 process fastqc_RawReads{
 
     //echo true
@@ -115,7 +105,7 @@ process fastqc_RawReads{
        file("RawReadsQC/$pair_id") into fastqc_results
 
     when:
-        params.fastqc == true
+        params.fastqc
 
 
 """
@@ -145,7 +135,7 @@ process multiqc_RawReads{
 	set file("multiqc*"), file("RawReadsQC/*fastqc*")  into multiqc_report1
     
     when:
-        params.fastqc == true
+        params.fastqc
 
 
 """
@@ -171,7 +161,7 @@ process multiqc_RawReads{
 
 process trimmomatic{
     
-    echo true
+    //echo true
     memory "${params.m_mem} GB"
     cpus  params.mtp_cores
     publishDir path: "$output/trimmomatic", mode: 'copy'
@@ -182,15 +172,13 @@ process trimmomatic{
 
     
     output:
-        set val(pair_id), file("*_1P.fastq"), file("*_2P.fastq") into (TrimmedReads1, TrimmedReads2, TrimmedReads3, TrimmedReads4)
-	file("*_1P.fastq") into (fwd_reads1, fwd_reads2, fwd_reads3, fwd_reads4 )
-        file('*_2P.fastq') into (rev_reads1, rev_reads2, rev_reads3, rev_reads4)	
+        set pair_id, file("*_1P.fastq"), file("*_2P.fastq") into TrimmedReads
         set file("trim_${pair_id}.log"), file("${pair_id}.log")  into  trim_log
         file("${pair_id}_trim_{1,2}U.fastq") into unpairedReads
-	file('time_trimmomatic') into time
+	
 
     when:
-        params.trimmomatic == true
+        params.trimmomatic
 
     script:	
     	(fwd, rev)=reads
@@ -198,7 +186,7 @@ process trimmomatic{
 	    
 """
 
-    /usr/bin/time -v -o time_trimmomatic $trimmomatic PE\
+    $trimmomatic PE\
     $fwd\
     $rev\
     -baseout ${pair_id}_trim.fastq\
@@ -217,13 +205,24 @@ process trimmomatic{
 //     o mySampleFiltered_1U.fq.gz - for unpaired forward reads
 //     o mySampleFiltered_2P.fq.gz - for paired reverse reads
 //     o mySampleFiltered_2U.fq.gz - for unpaired forward reads
-	
 }
 
 
+
+
+if (! params.trimmomatic){
+
+    reads3.map{ [it[0], it[1][0], it[1][1] ] }
+        .set{no_trimm}
+}
+
+
+trimmed_reads = ( params.trimmomatic ? TrimmedReads : no_trimm )
+    
+
 process build_sortmerRNA_IDX{
 
-    echo true
+    //echo true
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
  
@@ -234,7 +233,7 @@ process build_sortmerRNA_IDX{
         val sortmerna_idx_out
     
     when:
-	params.sortmerna_idx == true
+	params.sortmerna_index
 
     script:
 	sortmerna_idx_out  = sortmerna_idx
@@ -252,18 +251,6 @@ process build_sortmerRNA_IDX{
 }
 
 
-if (! params.sortmerna_idx) {
-
-    sortmerna_idx  = sortmerna_db.toString().replaceFirst(/fasta/, "idx") 
-}
-
-
-if (! params.trimmomatic){
-
-    reads5.map{ [it[0], it[1][0], it[1][1] ] }
-        .set{TrimmedReads1}
-    
- }
 
 
 
@@ -271,65 +258,66 @@ process sortmerRNA{
 
     //echo true
     cpus params.htp_cores
-    //publishDir path: "${output}/SortMeRNA", mode: 'copy'
-    publishDir path:"${DB_REF}/SortMeRNA"
+    publishDir path: "${output}/sortmerna", mode: 'copy'
     memory "${params.m_mem} GB"
 
     input:
         val sortmerna_idx
         val sortmerna_db
-        set pair_id, file(forward_reads), file(reverse_reads) from TrimmedReads1 
+        set pair_id, file(forward_reads), file(reverse_reads) from trimmed_reads 
     
     output:
 	set pair_id, file(forward_reads), file(reverse_reads) into filtered_reads 
-        file(forward_reads) into (mRNA_fwd1, mRNA_fwd2, mRNA_fwd3)
-	file(reverse_reads) into (mRNA_rev1, mRNA_rev2, mRNA_rev3)
-        //(mRNA_reads1, mRNA_reads2, mRNA_reads3)
-        //file("sortmerna_aligned.fastq*") into SortMeRNA_Aligned      
-	// set pair_id, file(forward_reads), file(reverse_reads) into (mRNA_tags1, mRNA_tags2, mRNA_tags3)
-        // file("mRNA.fastq") optional true into  (mRNA_reads1, mRNA_reads2, mRNA_reads3)
-     	// file("sortmerna_aligned.fastq*") into SortMeRNA_Aligned       
+        file(forward_reads) into mRNA_reads_fwd
+        file(reverse_reads) into mRNA_reads_rev
+	file("${pair_id}_lhist*") into lhist
+        file("sortmerna_aligned.fastq*") into SortMeRNA_Aligned      
+	
+       
     when:
-	params.sortmerna == true
+	params.sortmerna
 
-     
-
+    script:
+	paired=pair_id + ".fastq"
+    
+     	
 """
 
-  reformat.sh \
-  in= ${forward_reads} \
-  in2=${reverse_reads} \
-  out=${pair_id}.fastq                                
+    reformat.sh \
+    in=${forward_reads} \
+    in2=${reverse_reads} \
+    out=${paired}  
 
-  sortmerna \
-  --ref  ${sortmerna_db},${sortmerna_idx} \
-  --reads ${pair_id}.fastq \
-  --paired_out \
-  --aligned sortmerna_aligned \
-  --other mRNA \
-  -a ${params.htp_cores} \
-  --fastx \
-  -m ${params.h_mem} \
-  --log \
-  -v   
+    rm -v ${forward_reads} ${reverse_reads}
+
+    sortmerna \
+    --ref  ${sortmerna_db},${sortmerna_idx} \
+    --reads ${paired} \
+    --paired_out \
+    --aligned sortmerna_aligned \
+    --other mRNA \
+    -a ${params.htp_cores} \
+    --fastx \
+    -m ${params.h_mem} \
+    --log -v  
+
+    rm -v ${paired}
+
+    sed -i -e "/^\$/d" mRNA.fastq
+
+    reformat.sh \
+    deleteinput=t \
+    in=mRNA.fastq \
+    lhist=${pair_id}_lhist \
+    out1=${forward_reads} \
+    out2=${reverse_reads}
+
   
-  rm -v \
-  ${forward_reads} \
-  ${reverse_reads} \
-  ${pair_id}.fastq
-
-  sed -i -e '/^$/d' mRNA.fastq 
-
-  reformat.sh \
-  in=mRNA.fastq \
-  out1=${forward_reads} \
-  out2=${reverse_reads}
-      
 """
 
 }
 
- 
+
 
 process fastqc_filtered{
     
@@ -343,7 +331,7 @@ process fastqc_filtered{
     output:
      	file("filtered/${pair_id}") into fastqc_results2
     when:
-        params.fastqc == true
+        params.fastqc
 
 	
 """
@@ -375,7 +363,7 @@ process multiqc_filtered{
     	file("multiqc*")  into multiqc_report2
 
     when:
-        params.fastqc == true
+        params.fastqc
 	
 """
 
@@ -397,9 +385,24 @@ process multiqc_filtered{
 }
 
 
+if (! params.sortmerna){
+
+    reads4.into{reads_fwd; reads_rev}
+    reads_fwd.map{ [it[1][0]] }
+        .set{reads_fwd}
+    reads_rev.map{ [it[1][1]] }
+        .set{reads_rev}
+    
+}
+
+
+(!params.sortmerna ? reads_fwd : mRNA_reads_fwd).into{mRNA_fwd1; mRNA_fwd2; mRNA_fwd3}
+(!params.sortmerna ? reads_rev : mRNA_reads_rev).into{mRNA_rev1; mRNA_rev2; mRNA_rev3}
+
+
 process megahit{
     
-    echo true
+    //echo true
     cpus params.htp_cores 
     memory "${params.h_mem} GB"
     publishDir path: output, mode: 'move'
@@ -410,7 +413,7 @@ process megahit{
         file(all_rev) from mRNA_rev1.collect()
 	
     when:
-        params.megahit == true
+        params.megahit
 
     output:
         set file("MegaHit"), file('time_megahit') into MegahitOut
@@ -445,19 +448,17 @@ process megahit{
 
 process metaSpades{
 
-    echo true
+    //echo true
     cpus params.htp_cores
     memory "${params.h_mem} GB"
     publishDir path: output, mode: 'move'
-    //storeDir output
-
 
     input:
 	file(all_fwd) from mRNA_fwd2.collect()
         file(all_rev) from mRNA_rev2.collect()
     
     when:
-        params.metaspades == true
+        params.metaspades
 	
 
     output:
@@ -488,11 +489,11 @@ process metaSpades{
 
 process Trinity{
 
-    echo true
+    //echo true
     cpus params.htp_cores
     memory "${params.h_mem} GB"
     publishDir path: output, mode: 'move'
-    //storeDir output
+    
     
     input:
 	file(all_fwd) from mRNA_fwd3.collect()
@@ -500,14 +501,14 @@ process Trinity{
 
     output:
         set file("Trinity"), file('time_Trinity') into Trinity
-        file("Trinity/Trinity.fasta") into trinity_contigs
-
+       
     when:
-	params.trinity ==  true
+	params.trinity
 
     script:
         fwd=all_fwd.join(",")
-        rev=all_rev.join(",")
+    rev=all_rev.join(",")
+    
 	   
 """        
      /usr/bin/time -v  -o time_Trinity  Trinity\
@@ -518,9 +519,7 @@ process Trinity{
      --CPU ${params.htp_cores}\
      --output Trinity\
      --verbose
-    
 
 """
 
 }
-
