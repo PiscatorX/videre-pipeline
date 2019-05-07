@@ -3,7 +3,7 @@
 params.readtype		= "pe"
 params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/drewx/Documents/subsample-tiny"
-//params.readsbase        = "/home/andhlovu/subsample"
+params.readsbase        = "/home/andhlovu/subsample"
 //params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
@@ -16,7 +16,7 @@ output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
 params.fastqc  		= true
 params.trimmomatic      = true
-params.sortmerna_index  = false
+params.sortmerna_index  = true
 params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
@@ -283,15 +283,14 @@ process sortmerRNA{
     
 """
 
-  merge-paired-reads.sh \
-  ${forward_reads} \
-  ${reverse_reads} \
-  ${pair_id}.fastq
+  reformat.sh \
+  in= ${forward_reads} \
+  in2=${reverse_reads} \
+  out=${pair_id}.fastq                                
 
   sortmerna \
   --ref  ${sortmerna_db},${sortmerna_idx} \
-  --reads ${pair_id}.fastq\
-  
+  --reads ${pair_id}.fastq \
   --paired_out \
   --aligned sortmerna_aligned \
   --other mRNA \
@@ -305,16 +304,13 @@ process sortmerRNA{
   ${forward_reads} \
   ${reverse_reads} \
   ${pair_id}.fastq
- 
+
+  sed -i -e '/^$/d' mRNA.fastq 
+
   reformat.sh \
   in=mRNA.fastq \
   out1=${forward_reads} \
   out2=${reverse_reads}
-
-  #unmerge-paired-reads.sh \
-  mRNA.fastq \
-  ${forward_reads} \
-  ${reverse_reads}
       
 """
 
@@ -388,20 +384,6 @@ process multiqc_filtered{
 }
 
 
-if (params.trimmomatic == false) {
-
-    //workaround to test assembly
-    //this skips trimmomatic trimming
-    set pair_id, file(forward_reads), file(reverse_reads) into (mRNA_reads1, mRNA_reads2, mRNA_reads3)
-    reads_cp.into{cp_reads1; cp_reads2}        
-    cp_reads1.map{ it[1][0] }
-        .into{fwd_reads1; fwd_reads2; fwd_reads3; fwd_reads4}
-    cp_reads2.map{ it[1][1] }
-        .into{rev_reads1; rev_reads2; rev_reads3; rev_reads4}          
-}
-
-
-
 process megahit{
     
     echo true
@@ -419,7 +401,7 @@ process megahit{
 
     output:
         set file("MegaHit"), file('time_megahit') into MegahitOut
-        file('MegaHit/MegaHit.fasta') into (megahit_contigs1, megahit_contigs2, megahit_contigs3, megahit_contigs4)
+        
 	
     script:
         fwd=all_fwd.join(",")
@@ -429,7 +411,7 @@ process megahit{
 
 """ 
   
-    megahit \
+    /usr/bin/time -v  -o time_megahit megahit \
     -1 $fwd \
     -2 $rev \
     -t ${params.htp_cores} \
@@ -448,84 +430,84 @@ process megahit{
 
 
 
-// process metaSpades{
+process metaSpades{
 
-//     echo true
-//     cpus params.htp_cores
-//     memory "${params.h_mem} GB"
-//     publishDir path: output, mode: 'move'
-//     //storeDir output
+    echo true
+    cpus params.htp_cores
+    memory "${params.h_mem} GB"
+    publishDir path: output, mode: 'move'
+    //storeDir output
 
 
-//     input:
-// 	file(all_fwd) from mRNA_fwd2.collect()
-//         file(all_rev) from mRNA_rev2.collect()
+    input:
+	file(all_fwd) from mRNA_fwd2.collect()
+        file(all_rev) from mRNA_rev2.collect()
     
-//     when:
-//         params.metaspades == true
+    when:
+        params.metaspades == true
 	
 
-//     output:
-// 	set file("Metaspades"), file("time_metaspades") into MetaspadesOut
+    output:
+	set file("Metaspades"), file("time_metaspades") into MetaspadesOut
         
 	
-//     script:
-// 	 fwd=all_fwd.join(" ")
-//          rev=all_rev.join(" ")
+    script:
+	 fwd=all_fwd.join(" ")
+         rev=all_rev.join(" ")
     
 
-// """  
-//     cat ${fwd} > fwd.fastq${gz_ext}
-//     cat ${rev} > rev.fastq${gz_ext}
-//     /usr/bin/time -v  -o time_metaspades  metaspades.py \
-//     -1 fwd.fastq${gz_ext} \
-//     -2 rev.fastq${gz_ext} \
-//     --only-assembler \
-//     -t ${params.htp_cores} \
-//     -m ${params.h_mem} \
-//     -o Metaspades
+"""  
+    cat ${fwd} > fwd.fastq${gz_ext}
+    cat ${rev} > rev.fastq${gz_ext}
+    /usr/bin/time -v  -o time_metaspades  metaspades.py \
+    -1 fwd.fastq${gz_ext} \
+    -2 rev.fastq${gz_ext} \
+    --only-assembler \
+    -t ${params.htp_cores} \
+    -m ${params.h_mem} \
+    -o Metaspades
      
-// """
+"""
 
-// }
+}
 
 
 
-// process Trinity{
+process Trinity{
 
-//     echo true
-//     cpus params.htp_cores
-//     memory "${params.h_mem} GB"
-//     publishDir path: output, mode: 'move'
-//     //storeDir output
+    echo true
+    cpus params.htp_cores
+    memory "${params.h_mem} GB"
+    publishDir path: output, mode: 'move'
+    //storeDir output
     
-//     input:
-// 	file(all_fwd) from mRNA_fwd3.collect()
-//         file(all_rev) from mRNA_rev3.collect()
+    input:
+	file(all_fwd) from mRNA_fwd3.collect()
+        file(all_rev) from mRNA_rev3.collect()
 
-//     output:
-//         set file("Trinity"), file('time_Trinity') into Trinity
-//         file("Trinity/Trinity.fasta") into trinity_contigs
+    output:
+        set file("Trinity"), file('time_Trinity') into Trinity
+        file("Trinity/Trinity.fasta") into trinity_contigs
 
-//     when:
-// 	params.trinity ==  true
+    when:
+	params.trinity ==  true
 
-//     script:
-//         fwd=all_fwd.join(",")
-//         rev=all_rev.join(",")
+    script:
+        fwd=all_fwd.join(",")
+        rev=all_rev.join(",")
 	   
-// """        
-//      /usr/bin/time -v  -o time_Trinity  Trinity\
-//      --seqType fq\
-//      --left  $fwd\
-//      --right $rev\
-//      --max_memory ${params.h_mem}G \
-//      --CPU ${params.htp_cores}\
-//      --output Trinity\
-//      --verbose
+"""        
+     /usr/bin/time -v  -o time_Trinity  Trinity\
+     --seqType fq\
+     --left  $fwd\
+     --right $rev\
+     --max_memory ${params.h_mem}G \
+     --CPU ${params.htp_cores}\
+     --output Trinity\
+     --verbose
     
 
-// """
+"""
 
-// }
+}
 
