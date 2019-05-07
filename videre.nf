@@ -1,14 +1,20 @@
 #!/usr/bin/env nextflow
 
 params.readtype		= "pe"
-params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase 	= "/home/drewx/Documents/subsample-tiny"
+<<<<<<< HEAD
 params.readsbase        = "/home/andhlovu/subsample"
+=======
+//params.readsbase      = "/home/andhlovu/subsample"
+params.readsbase	= "/home/drewx/Documents/sea-biome/reads.gz"
+>>>>>>> ca49db5d8cab6c406e1c80c603fc9066282a59ad
 //params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
 params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
 //params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
-params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
+params.pe_patt 		= "*_{1,2}.fq.gz"
+//params.pe_patt 		= "*_RNA_{1,2}.fq.gz" 
 params.output  		= "$PWD/videre.Out"
 sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
@@ -16,8 +22,14 @@ output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
 params.fastqc  		= true
 params.trimmomatic      = true
+<<<<<<< HEAD
 params.sortmerna_index  = true
 params.megahit 		= true
+=======
+params.sortmerna_index  = false
+params.sortmerna        = false
+params.megahit 		= false
+>>>>>>> ca49db5d8cab6c406e1c80c603fc9066282a59ad
 params.metaspades 	= false
 params.trinity          = false
 
@@ -37,16 +49,13 @@ if (! sortmerna_db.endsWith('fasta')){
 
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
-       .set{get_reads}
-
-get_reads.into{reads1;
-	       reads2;
-	       reads3;
-	       reads4;
-	       reads5;
-               reads6;
-               readsx}
-
+       .into{reads1;
+	    reads2;
+	    reads3;
+	    reads4;
+	    reads5;
+	    reads6;
+	    readsx}
 
 
 log.info """
@@ -280,7 +289,11 @@ process sortmerRNA{
 	// set pair_id, file(forward_reads), file(reverse_reads) into (mRNA_tags1, mRNA_tags2, mRNA_tags3)
         // file("mRNA.fastq") optional true into  (mRNA_reads1, mRNA_reads2, mRNA_reads3)
      	// file("sortmerna_aligned.fastq*") into SortMeRNA_Aligned       
-    
+    when:
+	params.sortmerna == true
+
+     
+
 """
 
   reformat.sh \
