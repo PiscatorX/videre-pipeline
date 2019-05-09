@@ -9,8 +9,8 @@
 
 params.readtype		= "pe"
 //params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
-params.readsbase       = "/home/drewx/Documents/subsample"
-//params.readsbase        = "/home/andhlovu/subsample"
+//params.readsbase       = "/home/drewx/Documents/subsample"
+params.readsbase        = "/home/andhlovu/subsample"
 params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
 //params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
@@ -22,9 +22,9 @@ sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
 output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
-params.fastqc  		= false
-params.trimmomatic      = false
-params.sortmerna_index  = false
+params.fastqc  		= true
+params.trimmomatic      = true
+params.sortmerna_index  = true
 params.sortmerna        = true
 params.megahit 		= true
 params.metaspades 	= false
@@ -251,7 +251,7 @@ process build_sortmerRNA_IDX{
 }
 
 
-
+sortmerna_IDX = ( params.sortmerna_index : sortmerna_idx_out ? sortmerna_idx )
 
 
 process sortmerRNA{
@@ -262,7 +262,7 @@ process sortmerRNA{
     memory "${params.m_mem} GB"
 
     input:
-        val sortmerna_idx
+        val sortmerna_IDX
         val sortmerna_db
         set pair_id, file(forward_reads), file(reverse_reads) from trimmed_reads 
     
