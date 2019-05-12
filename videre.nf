@@ -8,15 +8,15 @@
  */
 
 params.readtype		= "pe"
-//params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
+params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
 //params.readsbase       = "/home/drewx/Documents/subsample"
-params.readsbase        = "/home/andhlovu/subsample"
-params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
-//params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
+//params.readsbase        = "/home/andhlovu/subsample"
+//params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
+params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
 //params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 //params.pe_patt 		= "*_{1,2}.fq.gz"
-params.pe_patt 		= "*_{1,2}.fq"
+params.pe_patt 		= "*_{1,2}.fq.gz"
 params.output  		= "$PWD/videre.Out"
 sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
@@ -251,13 +251,13 @@ process build_sortmerRNA_IDX{
 }
 
 
-sortmerna_IDX = ( params.sortmerna_index : sortmerna_idx_out ? sortmerna_idx )
+sortmerna_IDX = ( params.sortmerna_index ? sortmerna_idx_out : sortmerna_idx )
 
 
 process sortmerRNA{
 
     //echo true
-    cpus params.htp_cores
+    cpus params.ltp_cores
     publishDir path: "${output}/sortmerna", mode: 'copy'
     memory "${params.m_mem} GB"
 
@@ -291,7 +291,7 @@ process sortmerRNA{
     rm -v ${forward_reads} ${reverse_reads}
 
     sortmerna \
-    --ref  ${sortmerna_db},${sortmerna_idx} \
+    --ref  ${sortmerna_db},${sortmerna_IDX} \
     --reads ${paired} \
     --paired_out \
     --aligned sortmerna_aligned \
@@ -303,7 +303,7 @@ process sortmerRNA{
 
     rm -v ${paired}
 
-    sed -i -e "/^\$/d" mRNA.fastq
+    sed -i '/^\$/d' mRNA.fastq
 
     reformat.sh \
     deleteinput=t \
@@ -396,8 +396,8 @@ if (! params.sortmerna){
 }
 
 
-(!params.sortmerna ? reads_fwd : mRNA_reads_fwd).into{mRNA_fwd1; mRNA_fwd2; mRNA_fwd3}
-(!params.sortmerna ? reads_rev : mRNA_reads_rev).into{mRNA_rev1; mRNA_rev2; mRNA_rev3}
+(params.sortmerna ? mRNA_reads_fwd : reads_fwd).into{mRNA_fwd1; mRNA_fwd2; mRNA_fwd3}
+(params.sortmerna ? mRNA_reads_rev : reads_rev).into{mRNA_rev1; mRNA_rev2; mRNA_rev3}
 
 
 process megahit{
