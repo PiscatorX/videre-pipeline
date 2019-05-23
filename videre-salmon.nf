@@ -1,35 +1,38 @@
 #! /usr/bin/env nextflow
 
+/*
+ * Copyright (c) 2019, Andrew Ndhlovu.
+ *
+ * author Andrew Ndhlovu <drewxdvst@outlook.com> 
+ *  
+ */
 
-//params.readsbase    = "/home/drewx/Documents/subsample"
-params.readsbase    = "Videre.Out/Trimmomatic/"
-params.pe_patt      = "*_trim_{1,2}P.fastq"
-params.DB_REF 	    = System.getenv('DB_REF')
+//params.readsbase   = "/home/drewx/Documents/videre-pipeline/videre.Out/sortmerna"
+params.readsbase    = "/home/drewx/Documents/subsample"
+params.pe_patt      = "*_RNA_{1,2}.fq"
+params.DB_REF 	    =  "${DB_REF}"
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
 output              =  params.output
-//params.queries_path = "Contigs"
-params.queries_path = "/home/andhlovu/Metatranscriptomics_DevOps/megahit_contig/MegaHit/MegaHit.fasta"
+params.queries_path = "Contigs"
+//params.queries_path = "/home/andhlovu/Metatranscriptomics_DevOps/megahit_contig/MegaHit/MegaHit.fasta"
 query_seq           =  file(params.queries_path)
 output              = params.output
 DB_REF		    = params.DB_REF
 params.bowtie_idx   = true
 params.bowtie       = true
-params.salmon_index = false
-params.salmon_quant = false
+params.salmon_index = true
+params.salmon_quant = true
 params.gmst         = true
-
 
 Channel.fromPath(params.queries_path +'/*')
     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
     .set{contig_queries}
 
-
 reads = params.readsbase +'/'+ params.pe_patt
-
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
-    .into{reads1; reads2; reads3; reads4; readx}
+       .into{reads1; reads2; reads3; reads4; readsx}
 
 
 
@@ -54,7 +57,9 @@ Reads
 =====
 """
 
-readx.subscribe{  if(it instanceof List){ println it} }
+//readx.subscribe{  if(it instanceof List){ println it} }
+
+readsx.each{  if(it instanceof List){println it} }
 
 log.info"""
 ---------------------------------------------------------
@@ -73,14 +78,18 @@ process cd_hit_est{
        
     
    output:
-       file "${hits_base}.cd_hits" into cd_hits
-       file "${hits_base}.cd_hits.clstr" into cdhit_clusters
-       val  hits_base into cd_hits_base
-       
-    script:
-	hits_base = "${contigs.baseName}"
+       file(contig_fname) into (cd_hits_bowtie, cd_hits_salmon, cd_hits_gmst)
+       file("${contig_basename}.cd_hits.clstr") into cdhit_clusters
+       file("${contig_basename}.cd_hits") into cd_hits 
+       file(sqlite_database) into sqlite_db
+       val contig_basename into (contig_basename1,contig_basename2,contig_basename3)
 
+    script: 
+	contig_basename = "${contigs.baseName}_SHB"
+        sqlite_database = "${contig_basename}.db"   
+	contig_fname = "${contig_basename}.fasta"
 """
+
     cd-hit-est \
     -i $contigs \
     -c ${params.cdHit_perc} \
@@ -90,49 +99,17 @@ process cd_hit_est{
     -r 0 \
     -p 1 \
     -g 1 \
-    -o ${hits_base}.cd_hits 
-    
+    -o ${contig_basename}.cd_hits 
+
+    contig_initDB.py \
+    -d ${sqlite_database} \
+    -c ${contig_basename}.cd_hits \
+    -f \
+    -o ${contig_fname}
+
 """
 
 }
-
-
-
-
-process contig_initDB{
-
-    echo true
-    cpus params.mtp_cores
-    memory "${params.m_mem} GB"
-    publishDir path: "${output}/CD-Hit", mode: 'copy'
-    
-    input:
-	file(cd_hits) from cd_hits
-        val hits_base from cd_hits_base
-	
-    output:	
-        file(outfile) into (cd_hits_bowtie, cd_hits_salmon, cd_hits_gmst)
-        file(tsv_file) into fasta_ref
-        file(sqlite_db) into sqlite_db1
-
-    script:
-	sqlite_db  = "${hits_base}X.db"
-        outfile    = "${hits_base}X.fasta"
-        tsv_file   = "${hits_base}X.tsv"
-   
-"""
-	
-   contig_initDB.py \
-   -d ${sqlite_db} \
-   -c ${cd_hits} \
-   -f \
-   -o ${outfile}
-      
-"""
-   
-}
-
-
 
 
 process bowtie_idx{
@@ -140,21 +117,21 @@ process bowtie_idx{
     //echo true
     cpus params.htp_cores
     memory "${params.m_mem} GB"
-    //storeDir "${DB_REF}/Bowtie"
     publishDir "${DB_REF}/Bowtie"
     
     input:
+        val  contig_basename1
         file contig_fasta from cd_hits_bowtie
-    
+ 	
     output:  
-        set bowtie2_base, file("${bowtie2_base}*") into bowtie_idx
+        val bowtie2_base
+        file("${bowtie2_base}*") into bowtie_idx
        
-        
     when:
-	params.bowtie_idx == true
+	params.bowtie_idx
     
     script:
-	bowtie2_base =  "bowtie2_${contig_fasta}".replaceFirst(/.fasta/, "")
+        bowtie2_base =  "bowtie2_${contig_basename1}"
       
     
 """
@@ -170,81 +147,84 @@ process bowtie_idx{
     ${bowtie2_base}  >  bowtie2_${contig_fasta}.idx_stats
 
     
-"""
-    
+"""    
     
 }
 
 
 
+if (!params.bowtie_idx){
+
+   bowtie_idx = Channel.fromPath("${DB_REF}/Bowtie/*")
+   
+   contig_basename2.map{ fname ->
+   			 def base = "bowtie2_${fname}"
+   			 return base
+   			 }.set{bowtie2_base}
+
+}
+
+
+
+ 
 process bowtie2bam{
 
     echo true
     tag "${sample}"
     cpus params.htp_cores
-    //storeDir "${output}/Bowtie2sam"
-    publishDir "${DB_REF}/Bowtie2sam", mode: "copyNoFollow"
+    publishDir "${output}/Bowtie2sam", mode: "copy"
     memory "${params.h_mem} GB"
 
     input:
-        set sample, file(reads) from reads3
-        set bowtie2_base, file(bowties_idx_files) from bowtie_idx.collect()
-         
+        each data from reads3
+        file bowtie_idx_files from bowtie_idx.collect()
+	val bowtie2_base
+
     output:
 	file("${sample}*") into bowtie_sam
         file("${sample}.un")   into bowtie_unaligned
     
     when:
-	params.bowtie == true
+	params.bowtie
 
     script:
+        (sample, reads) = data
         (fwd_reads, rev_reads) = reads 
 	fwd_name = fwd_reads.baseName
         rev_name = rev_reads.baseName
-    
+	
 """
 
-   bowtie2 \
-    --threads ${params.htp_cores} \
-    -x ${bowtie2_base} \
-    -1 ${fwd_reads} \
-    -2 ${rev_reads} \
-    --no-unal\
-    --time \
-    --un ${sample}.un \
-    -S ${sample}.sam
+     bowtie2 \
+     --threads ${params.htp_cores} \
+     -x ${bowtie2_base} \
+     -1 ${fwd_reads} \
+     -2 ${rev_reads} \
+     --no-unal\
+     --time \
+     --un ${sample}.un \
+     -S ${sample}.sam
 
 
-    samtools \
-    view \
-    ${sample}.sam \
-    -F 4 \
-    -b \
-    -o ${sample}.bam 
-   
-   
- 
+     samtools \
+     view \
+     ${sample}.sam \
+     -F 4 \
+     -b \
+     -o ${sample}.bam 
+     
 """
-//     o mySampleFiltered_1P.fq.gz - for paired forward reads
-//     o mySampleFiltered_1U.fq.gz - for unpaired forward reads
-//     o mySampleFiltered_2P.fq.gz - for paired reverse reads
-//     o mySampleFiltered_2U.fq.gz - for unpaired forward reads
-//--un <path>        write unpaired reads that didn't align to <path>
-// --no-unal          suppress SAM records for unaligned reads
 //http://bowtie-bio.sourceforge.net/bowtie2/index.shtml
 
 }
 
 
-
-
 process salmon_index{
-    
     echo true
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
     //storeDir "${params.DB_REF}/Salmon"
-    publishDir "${DB_REF}/Salmon"
+    publishDir "${DB_REF}", mode: "copy"
 
     input:
 	file(cd_hits) from cd_hits_salmon
@@ -253,7 +233,7 @@ process salmon_index{
         file("salmon_index") into salmon_index
 
     when:
-	params.salmon_index == true
+	params.salmon_index
         
 	    
 """
@@ -274,26 +254,34 @@ process salmon_index{
 }
 
 
+if(! params.salmon_index){
+
+     salmon_index = Channel.fromPath("${DB_REF}/salmon_index")
+
+}
 
 
 process salmon_quant{
     
     //echo  true
+    tag "${pair_id}"
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
-    publishDir path: output, mode: 'move'
+    publishDir path: "${output}/Quant", mode: 'move'
     
     input:
+        each data from reads2
 	file(index) from salmon_index
-        set pair_id, file(reads) from reads2
+        
       
     output:
-        file("salmon_${pair_id}") into salmon_quant
+        file(pair_id) into salmon_quant
 
     when:
-	params.salmon_quant == true
+	params.salmon_quant
     
     script:
+        (pair_id,reads) = data
     	(left, right)=reads
     
 """
@@ -309,10 +297,9 @@ process salmon_quant{
     --validateMappings \
     --writeUnmappedNames \
     --meta \
-    --output salmon_${pair_id} \
+    --output ${pair_id} \
     --discardOrphansQuasi \
     -p ${params.htp_cores}
-
 
 """
 	
@@ -328,21 +315,25 @@ process GeneMarkST{
     publishDir path: "$output/GeneMarkST", mode: 'move'
     input:
 	file(cd_hits) from cd_hits_gmst
-        file(sqlite_database) from sqlite_db1
-	
+	file sqlite_db
+
     output:
-	file("${cd_hits}*") into gmst_out
 	file(genetable) into genetable
 	file("gms.log") into gms_log
+	file("*.faa") into predicted_aa
+	file("*.fnn") into predicted_nn
+	file("*.gff") into pedicted_gff
+	file(sqlite_db) into sqlite_database
 
     when:
-	params.gmst == true
+	params.gmst
 
-    script:
+    script:        
         base =  cd_hits.baseName
     	genetable = "${base}.gene_tsv"
 	gff = "${base}.gff"
-	
+
+
 """
 
       gmst.pl \
@@ -350,16 +341,32 @@ process GeneMarkST{
       --faa \
       --format GFF \
       ${cd_hits} \
-      --verbose
+      --verbose      
+      
+      fasta_gff_dedup.py \
+      ${cd_hits}.faa \
+      ${cd_hits}.gff \
+      -f ${cd_hits}_aa.faa \
+      -g ${cd_hits}_aa.gff
+
+      fasta_gff_dedup.py \
+      ${cd_hits}.fnn \
+      ${cd_hits}.gff \
+      -f ${cd_hits}_nt.faa \
+      -g ${cd_hits}_nt.gff
 
       gff2genetable.py \
-      -d ${sqlite_database} \
+      -d ${sqlite_db} \
       -o ${genetable} \
        ${cd_hits}.gff
-       
-         
+     
+      
 """
+
 //output sent to GhostKoala
 
 
 }
+
+
+
