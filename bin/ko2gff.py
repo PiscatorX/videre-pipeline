@@ -60,7 +60,7 @@ class ParseKO(object):
                     #print("{} data available skipping".format(ko))
                     continue
                 try:
-                    name, definition = REST.kegg_list(ko).read().strip().split("\t")[1:][0].split(";")
+                    name, definition = REST.kegg_list(ko).read().strip().split("\t", 1)[1:][0].split(";", 1)
                     self.ko_names_def[ko] = [name, definition]
                     print("{}".format("\t".join([seq_id,ko,name,definition])))
                     map_writer.writerow([seq_id,ko,name,definition])
