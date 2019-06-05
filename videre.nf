@@ -22,11 +22,11 @@ sortmerna_db            = Channel.value(params.sortmerna_db)
 sortmerna_idx           = Channel.value(params.sortmerna_idx)
 output                  = params.output
 DB_REF                  = System.getenv('DB_REF')
-params.fastqc  		= true
+params.fastqc  		= false
 params.trimmomatic      = true
-params.sortmerna_index  = true
+params.sortmerna_index  = false
 params.sortmerna        = true
-params.megahit 		= true
+params.megahit 		= false
 params.metaspades 	= false
 params.trinity          = false
 
@@ -271,7 +271,7 @@ process sortmerRNA{
         file(forward_reads) into mRNA_reads_fwd
         file(reverse_reads) into mRNA_reads_rev
 	file("${pair_id}_lhist*") into lhist
-        file("sortmerna_aligned.fastq*") into SortMeRNA_Aligned      
+        file("${pair_id}_sortmerna_aligned*") into SortMeRNA_Aligned      
 	
        
     when:
@@ -294,7 +294,7 @@ process sortmerRNA{
     --ref  ${sortmerna_db},${sortmerna_IDX} \
     --reads ${paired} \
     --paired_out \
-    --aligned sortmerna_aligned \
+    --aligned ${pair_id}_sortmerna_aligned \
     --other mRNA \
     -a ${params.htp_cores} \
     --fastx \
