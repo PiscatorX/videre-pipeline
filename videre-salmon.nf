@@ -1,6 +1,6 @@
 #! /usr/bin/env nextflow
 
-/*
+*
  * Copyright (c) 2019, Andrew Ndhlovu.
  *
  * author Andrew Ndhlovu <drewxdvst@outlook.com> 
@@ -9,7 +9,7 @@
 
 //params.readsbase   = "/home/drewx/Documents/videre-pipeline/videre.Out/sortmerna"
 params.readsbase    = "/home/drewx/Documents/subsample"
-params.pe_patt      = "*_RNA_{1,2}.fq"
+params.pe_patt      = "*_trim_{1,2}.fq"
 params.DB_REF 	    =  "${DB_REF}"
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
@@ -181,8 +181,11 @@ process bowtie2bam{
 	val bowtie2_base
 
     output:
-	file("${sample}*") into bowtie_sam
-        file("${sample}.un")   into bowtie_unaligned
+	file("${sample}.sam") into bowtie_sam
+	file("${sample}.bam") into bowtie_bam
+        file("*.un")
+	file("*.al")
+	file("*.log")
     
     when:
 	params.bowtie
@@ -200,10 +203,11 @@ process bowtie2bam{
      -x ${bowtie2_base} \
      -1 ${fwd_reads} \
      -2 ${rev_reads} \
-     --no-unal\
+     --no-unal \
      --time \
-     --un ${sample}.un \
-     -S ${sample}.sam
+     --un-conc ${sample}.un \
+     --al-conc ${sample}.al \
+     -S ${sample}.sam &> ${sample}.log 
 
 
      samtools \
@@ -219,47 +223,6 @@ process bowtie2bam{
 }
 
 
-process salmon_index{
-    echo true
-    cpus params.mtp_cores
-    memory "${params.m_mem} GB"
-    //storeDir "${params.DB_REF}/Salmon"
-    publishDir "${DB_REF}", mode: "copy"
-
-    input:
-	file(cd_hits) from cd_hits_salmon
-    
-    output:
-        file("salmon_index") into salmon_index
-
-    when:
-	params.salmon_index
-        
-	    
-"""
-
-    salmon \
-    --no-version-check \
-    index \
-    -t  ${cd_hits}  \
-    -i  salmon_index \
-    --type quasi \
-    -p  ${params.htp_cores} 
-
-"""
-    
-//https://salmon.readthedocs.io/en/latest/salmon.html#using-salmon
-//https://salmon.readthedocs.io/en/latest/salmon.html#quantifying-in-mapping-based-modex
-   
-}
-
-
-if(! params.salmon_index){
-
-     salmon_index = Channel.fromPath("${DB_REF}/salmon_index")
-
-}
-
 
 process salmon_quant{
     
@@ -270,8 +233,8 @@ process salmon_quant{
     publishDir path: "${output}/Quant", mode: 'move'
     
     input:
-        each data from reads2
-	file(index) from salmon_index
+        each bam from bowtie_bam
+	file(cd_hits) from cd_hits_salmon
         
       
     output:
@@ -279,26 +242,22 @@ process salmon_quant{
 
     when:
 	params.salmon_quant
-    
-    script:
-        (pair_id,reads) = data
-    	(left, right)=reads
-    
+
+   script:
+       pair_id = "${bam.baseName}"
+	
+  
 """
 
     salmon \
     quant \
     --no-version-check \
-    -l iu \
-    -1 $left \
-    -2 $right \
-    --index salmon_index \
-    --minAssignedFrags 0 \
-    --validateMappings \
+    -l A \
+    -a ${bam} \
+    -t ${cd_hits} \
     --writeUnmappedNames \
     --meta \
     --output ${pair_id} \
-    --discardOrphansQuasi \
     -p ${params.htp_cores}
 
 """
