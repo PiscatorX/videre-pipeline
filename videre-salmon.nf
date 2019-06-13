@@ -7,15 +7,15 @@
  *  
  */
 
-//params.readsbase   = "/home/drewx/Documents/videre-pipeline/videre.Out/sortmerna"
-params.readsbase    = "/home/drewx/Documents/subsample"
-params.pe_patt      = "*_RNA_{1,2}.fq"
+params.readsbase   = "/home/andhlovu/MT-assembly-megahit/videre.Out/CD-Hit"
+//params.readsbase    = "/home/drewx/Documents/subsample"
+params.pe_patt      = "*_RNA_cdhit_{1,2}P.fastq"
 params.DB_REF 	    =  "${DB_REF}"
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
 output              =  params.output
-params.queries_path = "Contigs"
-//params.queries_path = "/home/andhlovu/Metatranscriptomics_DevOps/megahit_contig/MegaHit/MegaHit.fasta"
+//params.queries_path = "Contigs"
+params.queries_path = "/home/andhlovu/MT-contigs"
 query_seq           =  file(params.queries_path)
 output              = params.output
 DB_REF		    = params.DB_REF
@@ -25,11 +25,19 @@ params.salmon_index = true
 params.salmon_quant = true
 params.gmst         = true
 
+
 Channel.fromPath(params.queries_path +'/*')
     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
     .set{contig_queries}
 
+
+// Channel.fromPath(params.queries_path +'/*')
+//     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
+//     .into{cd_hits_salmon; cd_hits_bowtie}
+//Channel.value("MegaHit").into{contig_basename1contig_basename2,contig_basename3)
+
 reads = params.readsbase +'/'+ params.pe_patt
+
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
        .into{reads1; reads2; reads3; reads4; readsx}
@@ -112,6 +120,8 @@ process cd_hit_est{
 }
 
 
+
+
 process bowtie_idx{
 
     //echo true
@@ -140,7 +150,9 @@ process bowtie_idx{
     --large-index \
     --threads ${params.htp_cores} \
     ${contig_fasta} \
-    ${bowtie2_base}
+    ${bowtie2_base}  > ${bowtie2_base}.log
+
+
     bowtie2-inspect \
     --large-in \
     --summary \
@@ -169,11 +181,11 @@ if (!params.bowtie_idx){
  
 process bowtie2bam{
 
-    echo true
+    //echo true
     tag "${sample}"
     cpus params.htp_cores
     publishDir "${output}/Bowtie2sam", mode: "copy"
-    memory "${params.h_mem} GB"
+    memory "${params.m_mem} GB"
 
     input:
         each data from reads3
@@ -220,7 +232,7 @@ process bowtie2bam{
 
 
 process salmon_index{
-    echo true
+    //echo true
     cpus params.mtp_cores
     memory "${params.m_mem} GB"
     //storeDir "${params.DB_REF}/Salmon"
@@ -367,6 +379,5 @@ process GeneMarkST{
 
 
 }
-
 
 
