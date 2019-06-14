@@ -7,8 +7,8 @@
  *  
  */
 
-params.readsbase   = "/home/andhlovu/MT-assembly-megahit/videre.Out/CD-Hit"
-//params.readsbase    = "/home/drewx/Documents/subsample"
+params.readsbase    = "/home/andhlovu/MT-assembly-megahit/megahit_1306/CD-Hit"
+//params.readsbase  = "/home/drewx/Documents/subsample"
 params.pe_patt      = "*_RNA_cdhit_{1,2}P.fastq"
 params.DB_REF 	    =  "${DB_REF}"
 params.output       = "${PWD}/Salmon"
@@ -30,12 +30,6 @@ Channel.fromPath(params.queries_path +'/*')
     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
     .set{contig_queries}
 
-
-// Channel.fromPath(params.queries_path +'/*')
-//     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
-//     .into{cd_hits_salmon; cd_hits_bowtie}
-//Channel.value("MegaHit").into{contig_basename1contig_basename2,contig_basename3)
-
 reads = params.readsbase +'/'+ params.pe_patt
 
 Channel.fromFilePairs(reads)
@@ -54,7 +48,7 @@ High TP cores    	= ${params.htp_cores}
 Midium TP cores    	= ${params.mtp_cores} 
 Low TP cores    	= ${params.ltp_cores}
 H_mem  			= ${params.h_mem}
-Bowti IDX               = ${params.bowtie_idx}
+Bowtie IDX               = ${params.bowtie_idx}
 Bowtie                  = ${params.bowtie}
 Salmon Index            = ${params.salmon_index}
 Salmon Quant            = ${params.salmon_quant}
@@ -78,7 +72,7 @@ process cd_hit_est{
    
     //echo true
     cpus params.htp_cores
-    memory "${params.m_mem} GB"
+    memory "${params.l_mem} GB"
     publishDir path: "${output}/CD-Hit", mode: 'copy'
   
    input:
@@ -126,8 +120,8 @@ process bowtie_idx{
 
     //echo true
     cpus params.htp_cores
-    memory "${params.m_mem} GB"
-    publishDir "${DB_REF}/Bowtie"
+    memory "${params.l_mem} GB"
+    publishDir "${DB_REF}/Bowtie", mode: "copy"
     
     input:
         val  contig_basename1
@@ -179,13 +173,13 @@ if (!params.bowtie_idx){
 
 
  
-process bowtie2bam{
+process bowtie2sam{
 
     //echo true
     tag "${sample}"
     cpus params.htp_cores
     publishDir "${output}/Bowtie2sam", mode: "copy"
-    memory "${params.m_mem} GB"
+    memory "${params.l_mem} GB"
 
     input:
         each data from reads3
@@ -193,8 +187,11 @@ process bowtie2bam{
 	val bowtie2_base
 
     output:
-	file("${sample}*") into bowtie_sam
-        file("${sample}.un")   into bowtie_unaligned
+	file("${sample}.sam") into bowtie_sam
+	file("${sample}.bam") into bowtie_bam
+        file("*.un")
+	file("*.al")
+	file("*.log")
     
     when:
 	params.bowtie
@@ -212,10 +209,12 @@ process bowtie2bam{
      -x ${bowtie2_base} \
      -1 ${fwd_reads} \
      -2 ${rev_reads} \
-     --no-unal\
+     --fr \
+     --no-unal \
      --time \
-     --un ${sample}.un \
-     -S ${sample}.sam
+     --un-conc ${sample}.un \
+     --al-conc ${sample}.al \
+     -S ${sample}.sam &> ${sample}.log 
 
 
      samtools \
@@ -231,59 +230,18 @@ process bowtie2bam{
 }
 
 
-process salmon_index{
-    //echo true
-    cpus params.mtp_cores
-    memory "${params.m_mem} GB"
-    //storeDir "${params.DB_REF}/Salmon"
-    publishDir "${DB_REF}", mode: "copy"
-
-    input:
-	file(cd_hits) from cd_hits_salmon
-    
-    output:
-        file("salmon_index") into salmon_index
-
-    when:
-	params.salmon_index
-        
-	    
-"""
-
-    salmon \
-    --no-version-check \
-    index \
-    -t  ${cd_hits}  \
-    -i  salmon_index \
-    --type quasi \
-    -p  ${params.htp_cores} 
-
-"""
-    
-//https://salmon.readthedocs.io/en/latest/salmon.html#using-salmon
-//https://salmon.readthedocs.io/en/latest/salmon.html#quantifying-in-mapping-based-modex
-   
-}
-
-
-if(! params.salmon_index){
-
-     salmon_index = Channel.fromPath("${DB_REF}/salmon_index")
-
-}
-
 
 process salmon_quant{
     
     //echo  true
     tag "${pair_id}"
     cpus params.mtp_cores
-    memory "${params.m_mem} GB"
+    memory "${params.h_mem} GB"
     publishDir path: "${output}/Quant", mode: 'move'
     
     input:
-        each data from reads2
-	file(index) from salmon_index
+        each bam from bowtie_bam
+	file(cd_hits) from cd_hits_salmon
         
       
     output:
@@ -291,26 +249,22 @@ process salmon_quant{
 
     when:
 	params.salmon_quant
-    
-    script:
-        (pair_id,reads) = data
-    	(left, right)=reads
-    
+
+   script:
+       pair_id = "${bam.baseName}"
+	
+  
 """
 
     salmon \
     quant \
     --no-version-check \
-    -l iu \
-    -1 $left \
-    -2 $right \
-    --index salmon_index \
-    --minAssignedFrags 0 \
-    --validateMappings \
+    -l A \
+    -a ${bam} \
+    -t ${cd_hits} \
     --writeUnmappedNames \
     --meta \
     --output ${pair_id} \
-    --discardOrphansQuasi \
     -p ${params.htp_cores}
 
 """
@@ -379,5 +333,3 @@ process GeneMarkST{
 
 
 }
-
-
