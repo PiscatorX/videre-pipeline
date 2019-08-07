@@ -1,21 +1,21 @@
 #! /usr/bin/env nextflow
 
-*
+/*
  * Copyright (c) 2019, Andrew Ndhlovu.
  *
  * author Andrew Ndhlovu <drewxdvst@outlook.com> 
  *  
  */
 
-//params.readsbase   = "/home/drewx/Documents/videre-pipeline/videre.Out/sortmerna"
-params.readsbase    = "/home/drewx/Documents/subsample"
-params.pe_patt      = "*_trim_{1,2}.fq"
+params.readsbase    = "/home/andhlovu/MT-assembly-megahit/megahit_1306/CD-Hit"
+//params.readsbase  = "/home/drewx/Documents/subsample"
+params.pe_patt      = "*_RNA_cdhit_{1,2}P.fastq"
 params.DB_REF 	    =  "${DB_REF}"
 params.output       = "${PWD}/Salmon"
 params.cdHit_perc   = 0.98
 output              =  params.output
-params.queries_path = "Contigs"
-//params.queries_path = "/home/andhlovu/Metatranscriptomics_DevOps/megahit_contig/MegaHit/MegaHit.fasta"
+//params.queries_path = "Contigs"
+params.queries_path = "/home/andhlovu/MT-contigs"
 query_seq           =  file(params.queries_path)
 output              = params.output
 DB_REF		    = params.DB_REF
@@ -25,11 +25,13 @@ params.salmon_index = true
 params.salmon_quant = true
 params.gmst         = true
 
+
 Channel.fromPath(params.queries_path +'/*')
     .ifEmpty{ error "Could not locate pair contigs files => ${params.queries_path}" }
     .set{contig_queries}
 
 reads = params.readsbase +'/'+ params.pe_patt
+
 Channel.fromFilePairs(reads)
        .ifEmpty{ error "Could not locate pair reads: ${reads}"}
        .into{reads1; reads2; reads3; reads4; readsx}
@@ -46,7 +48,7 @@ High TP cores    	= ${params.htp_cores}
 Midium TP cores    	= ${params.mtp_cores} 
 Low TP cores    	= ${params.ltp_cores}
 H_mem  			= ${params.h_mem}
-Bowti IDX               = ${params.bowtie_idx}
+Bowtie IDX               = ${params.bowtie_idx}
 Bowtie                  = ${params.bowtie}
 Salmon Index            = ${params.salmon_index}
 Salmon Quant            = ${params.salmon_quant}
@@ -70,7 +72,7 @@ process cd_hit_est{
    
     //echo true
     cpus params.htp_cores
-    memory "${params.m_mem} GB"
+    memory "${params.l_mem} GB"
     publishDir path: "${output}/CD-Hit", mode: 'copy'
   
    input:
@@ -112,12 +114,14 @@ process cd_hit_est{
 }
 
 
+
+
 process bowtie_idx{
 
     //echo true
     cpus params.htp_cores
-    memory "${params.m_mem} GB"
-    publishDir "${DB_REF}/Bowtie"
+    memory "${params.l_mem} GB"
+    publishDir "${DB_REF}/Bowtie", mode: "copy"
     
     input:
         val  contig_basename1
@@ -140,7 +144,9 @@ process bowtie_idx{
     --large-index \
     --threads ${params.htp_cores} \
     ${contig_fasta} \
-    ${bowtie2_base}
+    ${bowtie2_base}  > ${bowtie2_base}.log
+
+
     bowtie2-inspect \
     --large-in \
     --summary \
@@ -167,13 +173,13 @@ if (!params.bowtie_idx){
 
 
  
-process bowtie2bam{
+process bowtie2sam{
 
-    echo true
+    //echo true
     tag "${sample}"
     cpus params.htp_cores
     publishDir "${output}/Bowtie2sam", mode: "copy"
-    memory "${params.h_mem} GB"
+    memory "${params.l_mem} GB"
 
     input:
         each data from reads3
@@ -203,6 +209,7 @@ process bowtie2bam{
      -x ${bowtie2_base} \
      -1 ${fwd_reads} \
      -2 ${rev_reads} \
+     --fr \
      --no-unal \
      --time \
      --un-conc ${sample}.un \
@@ -229,7 +236,7 @@ process salmon_quant{
     //echo  true
     tag "${pair_id}"
     cpus params.mtp_cores
-    memory "${params.m_mem} GB"
+    memory "${params.h_mem} GB"
     publishDir path: "${output}/Quant", mode: 'move'
     
     input:
@@ -326,6 +333,3 @@ process GeneMarkST{
 
 
 }
-
-
-
