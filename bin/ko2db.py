@@ -58,7 +58,7 @@ class ParseKEGG(object):
 if __name__ == "__main__":
     ko = ParseKEGG()
     ko.processs_function()
-    #ko. processs_KO()
+    
     #ko.kegg_server
                                                
     
