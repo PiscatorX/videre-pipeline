@@ -2,8 +2,9 @@
 
 from Bio.Blast import  NCBIXML
 from collections import Counter, OrderedDict
-from db_connect import DB_Connect 
+from contig_initDB import DB_Connect 
 import itertools
+import sqlite3
 import argparse
 import pprint
 import sys
@@ -69,6 +70,7 @@ class  Bunker(DB_Connect):
                    align_length = align_ref[alignment.hit_id]['hsps']['align_length']
                    align_ref[alignment.hit_id]['hsps'].update({'perc_id' : round(100*identities/float(align_length), 2),
                                                             'mismatches' : align_length - identities})
+                   #print(hit_def)
                    assign_data[alignment.hit_id] = hit_def[self.assign_on]
                    if self.verbose:
                        #updating printing fields
@@ -174,16 +176,21 @@ class  Bunker(DB_Connect):
              cols = ', '.join(entry.keys())
              values = ', '.join([ "'"+str(val)+"'" for val in entry.values() ])
              sql = "INSERT INTO {0} ({1}) VALUES ({2})".format(table, cols, values )
-             pprint.pprint(sql)
-             self.conx.execute(sql)
+             try:
+                 self.conx.execute(sql)
+             except sqlite3.IntegrityError as e:
+                 print(e)
+                 pprint.pprint(sql)
+                 
+
+         self.conx.commit()
          
          
      
 if  __name__ == '__main__':
     parser = argparse.ArgumentParser(description="""Parse  BLAST xml output""")
     parser.add_argument('blast_xml')
-    parser.add_argument('-c','--consesus-cut-off', dest='cut_off', required=False, default=0.5,type=float)
-    parser.add_argument('-b','--batchsize', dest='batchsize', action='store', required=False, default=5,type=int)
+    parser.add_argument('-c','--consesus-cut-off', dest='cut_off', required=False, default=1,type=float)
     parser.add_argument('-v','--verbose', action="store_true")
     args, unknown = parser.parse_known_args()
     bunker = Bunker(args.blast_xml, args.cut_off, args.verbose)
