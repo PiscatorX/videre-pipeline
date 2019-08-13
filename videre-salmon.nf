@@ -207,6 +207,7 @@ process bowtie2sam{
      bowtie2 \
      --threads ${params.htp_cores} \
      -x ${bowtie2_base} \
+     --fr \
      -1 ${fwd_reads} \
      -2 ${rev_reads} \
      --fr \
