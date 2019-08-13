@@ -7,15 +7,19 @@
  *  
  */
 
-params.readtype		= "pe"
+params.readtype    = "pe"
+//params.readsbase   = "/home/andhlovu/MT-assembly-megahit/megahit_2405/videre.Out/sortmerna"
+params.readsbase   = "/home/andhlovu/MT-assembly-megahit/megahit_1305/CD-Hit" 
+//params.pe_patt      = "*_RNA_trim_{1,2}P.fastq"
+params.pe_patt      =  "*_RNA_cdhit_{1,2}P.fastq"
 //params.readsbase 	= "/home/andhlovu/Novogene/ftpdata.novogene.cn:2300/C101HW18111065/raw_data"
-params.readsbase       = "/home/drewx/Documents/subsample"
+//params.readsbase       = "/home/drewx/Documents/subsample"
 //params.readsbase        = "/home/andhlovu/subsample"
-params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
+//params.sortmerna_db   = "${DB_REF}/SILVA/sel_SILVA.fasta"
 //params.sortmerna_db     = "${DB_REF}/SILVA/SILVA_132_SSURef_Nr99_tax_silva.fasta"
 params.sortmerna_idx    = "${DB_REF}/SortMeRNA/SILVA.idx"
-//params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
-params.pe_patt 		= "*_{1,2}.fq"
+params.sortmerna_db   = "${DB_REF}/SILVA_132_SSURef_Nr99_tax_silva.fasta"
+//params.pe_patt 		= "*_{1,2}.fq"
 //params.pe_patt 		= "*_{1,2}.fq.gz"
 params.output  		= "$PWD/videre.Out"
 sortmerna_db            = Channel.value(params.sortmerna_db)
@@ -26,7 +30,7 @@ params.fastqc  		= false
 params.trimmomatic      = false
 params.sortmerna_index  = false
 params.sortmerna        = false
-params.cdhit            = true
+params.cdhit            = false
 params.megahit 		= true
 params.metaspades 	= false
 params.trinity          = false
@@ -403,47 +407,47 @@ if (! params.sortmerna){
 (params.sortmerna ? mRNA_reads_rev : reads_rev).into{mRNA_revx; mRNA_rev1; mRNA_rev2; mRNA_rev3}
 
 
-process  cd_hit{
+// process  cd_hit{
 
-    cpus params.mtp_cores
-    memory "${params.m_mem} GB"
-    publishDir path: "${output}/CD-Hit", mode: 'copy'
+//     cpus params.mtp_cores
+//     memory "${params.m_mem} GB"
+//     publishDir path: "${output}/CD-Hit", mode: 'copy'
   
-   input:
-       	 file(forward_reads) from mRNA_fwdx
-	 file(reverse_reads) from mRNA_revx 
+//    input:
+//        	 file(forward_reads) from mRNA_fwdx
+// 	 file(reverse_reads) from mRNA_revx 
        
-   output:
-	file(cdhit_R1) into mRNA_fwdx1
-        file(cdhit_R2) into mRNA_revx1	
+//    output:
+// 	file(cdhit_R1) into mRNA_fwdx1
+//         file(cdhit_R2) into mRNA_revx1	
 
-   when:
-        params.cdhit
+//    when:
+//         params.cdhit
 
-    script: 
-	cdhit_R1 =  "${forward_reads}".replaceFirst(/trim/, "cdhit")
-	cdhit_R2 =  "${reverse_reads}".replaceFirst(/trim/, "cdhit")        
+//     script: 
+// 	cdhit_R1 =  "${forward_reads}".replaceFirst(/trim/, "cdhit")
+// 	cdhit_R2 =  "${reverse_reads}".replaceFirst(/trim/, "cdhit")        
 
 
 
-"""  
-    cd-hit-est \
-    -P 1 \
-    -i ${forward_reads} \
-    -j ${reverse_reads} \
-    -o  ${cdhit_R1} \
-    -op ${cdhit_R2} \
-    -T ${params.htp_cores} \
-    -c 1.0 \
-    -M 0 \
-    -d 0 \
-    -r 0 \
-    -p 1 \
-    -g 1 \
+// """  
+//     cd-hit-est \
+//     -P 1 \
+//     -i ${forward_reads} \
+//     -j ${reverse_reads} \
+//     -o  ${cdhit_R1} \
+//     -op ${cdhit_R2} \
+//     -T ${params.htp_cores} \
+//     -c 1.0 \
+//     -M 0 \
+//     -d 0 \
+//     -r 0 \
+//     -p 1 \
+//     -g 1 \
 
-"""
+// """
 
-}
+// }
 
 
 
@@ -456,14 +460,14 @@ process megahit{
     
     
     input:
-	file(all_fwd) from mRNA_fwdx1.collect()
-        file(all_rev) from mRNA_revx1.collect()
+	file(all_fwd) from mRNA_fwdx.collect()
+        file(all_rev) from mRNA_revx.collect()
 	
     when:
         params.megahit
 
     output:
-        set file("MegaHit"), file('time_megahit') into MegahitOut
+        file("MegaHit") into MegahitOut
         
 	
     script:
@@ -474,10 +478,11 @@ process megahit{
 
 """ 
   
-    /usr/bin/time -v  -o time_megahit megahit \
+    megahit \
     -1 $fwd \
     -2 $rev \
     -t ${params.htp_cores} \
+    --presets meta-sensitive \
     --tmp-dir /tmp \
     -o MegaHit\
     --out-prefix MegaHit \
