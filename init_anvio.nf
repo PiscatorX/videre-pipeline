@@ -119,7 +119,8 @@ process anvi_profile{
   --min-contig-length ${params.min_contig} \
   --output-dir $sample \
   --num-threads ${params.mtp_cores} \
-  --sample-name $sample
+  --sample-name $sample \
+  --skip-hierarchical-clustering
     
 """
 
@@ -149,7 +150,7 @@ process anvi_merge{
     -o samples_merged \
     -c ${contig_db} \
     --sample-name St_Helena_Bay \
-    --enforce-hierarchical-clustering
+    --skip-hierarchical-clustering
 
 """
 
