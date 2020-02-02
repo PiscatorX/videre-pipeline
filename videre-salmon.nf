@@ -1,5 +1,6 @@
 #! /usr/bin/env nextflow
 
+<<<<<<< Updated upstream
 /*
  * Copyright (c) 2019, Andrew Ndhlovu.
  *
@@ -17,6 +18,19 @@ output              =  params.output
 //params.queries_path = "Contigs"
 params.queries_path = "/home/andhlovu/MT-contigs"
 query_seq           =  file(params.queries_path)
+=======
+//params.readsbase    = "/home/drewx/Documents/subsample"
+params.readsbase    = "/home/andhlovu/MT-assembly-megahit/videre.Out/sortmerna"
+//params.readsbase    = "/home/andhlovu/subsample"
+params.pe_patt      = "*_trim_{1,2}P.fastq"
+//params.pe_patt      = "*_{1,2}.fq"
+params.DB_REF 	    = System.getenv('DB_REF')
+params.output       = "${PWD}/Salmon"
+params.cdHit_perc   = 0.98
+output              =  params.output
+params.queries_path = "/home/andhlovu/MT-contigs"
+query_seq           = file(params.queries_path)
+>>>>>>> Stashed changes
 output              = params.output
 DB_REF		    = params.DB_REF
 params.bowtie_idx   = true
@@ -120,7 +134,12 @@ process bowtie_idx{
 
     //echo true
     cpus params.htp_cores
+<<<<<<< Updated upstream
     memory "${params.l_mem} GB"
+=======
+    memory "${params.m_mem} GB"
+    //storeDir "${DB_REF}/Bowtie"
+>>>>>>> Stashed changes
     publishDir "${DB_REF}/Bowtie", mode: "copy"
     
     input:
@@ -178,8 +197,14 @@ process bowtie2sam{
     //echo true
     tag "${sample}"
     cpus params.htp_cores
+<<<<<<< Updated upstream
     publishDir "${output}/Bowtie2sam", mode: "copy"
     memory "${params.l_mem} GB"
+=======
+    //storeDir "${output}/Bowtie2sam"
+    publishDir "${DB_REF}/Bowtie2sam", mode: "move"
+    memory "${params.m_mem} GB"
+>>>>>>> Stashed changes
 
     input:
         each data from reads3
@@ -232,6 +257,48 @@ process bowtie2sam{
 
 
 
+<<<<<<< Updated upstream
+=======
+
+process salmon_index{
+    
+    echo true
+    cpus params.mtp_cores
+    memory "${params.m_mem} GB"
+    //storeDir "${params.DB_REF}/Salmon"
+    publishDir "${DB_REF}/Salmon", mode: "copy"
+
+    input:
+	file(cd_hits) from cd_hits_salmon
+    
+    output:
+        file("salmon_index") into salmon_index
+
+    when:
+	params.salmon_index == true
+        
+	    
+"""
+
+    salmon \
+    --no-version-check \
+    index \
+    -t  ${cd_hits}  \
+    -i  salmon_index \
+    --type quasi \
+    -p  ${params.htp_cores} 
+
+"""
+    
+//https://salmon.readthedocs.io/en/latest/salmon.html#using-salmon
+//https://salmon.readthedocs.io/en/latest/salmon.html#quantifying-in-mapping-based-modex
+   
+}
+
+
+
+
+>>>>>>> Stashed changes
 process salmon_quant{
     
     //echo  true

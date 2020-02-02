@@ -4,12 +4,12 @@ params.sample_name      = "St_Helana_Bay"
 params.DB_REF 	        = System.getenv('DB_REF')
 DB_REF		        = params.DB_REF
 params.output   	= "${PWD}/Anvio"
-params.bamdir		= "${DB_REF}/Bowtie2sam"
+params.bamdir		= "/home/andhlovu/MT-salmonX/Salmon/Bowtie2sam"
 params.bam_patt 	= "*.bam"
 //params.contig  	= "/home/drewx/Documents/videre-pipeline/Salmon/CD-Hit/MegaHitX.fasta"
-params.contig  		= "/home/andhlovu/Metatranscriptomics_DevOps/Salmon/CD-Hit/MegaHitX.fasta"
-params.gene_table 	= "/home/andhlovu/Metatranscriptomics_DevOps/Salmon/GeneMarkST/MegaHitX.gene_tsv"
-params.min_contig       = 100
+params.contig  		= "/home/andhlovu/MT-salmonX/Salmon/CD-Hit/MegaHit_SHB.fasta"
+params.gene_table 	= "/home/andhlovu/MT-salmonX/Salmon/GeneMarkST/MegaHit_SHB.gene_tsv"
+params.min_contig       = 1000
 output 			= params.output 
 contig 			= file(params.contig)
 gene_table 		= file(params.gene_table)
@@ -27,7 +27,7 @@ process gen_contigDB{
     cpus params.ltp_cores
     memory "${params.m_mem} GB"
     //errorStrategy 'ignore'
-    publishDir path: output, mode: 'copyNoFollow'
+    publishDir path: output, mode: 'copy'
     
     input:
         file contig
@@ -90,6 +90,7 @@ process anvi_profile{
 
     //label 'anvio'
     echo true
+    maxForks 1
     cpus params.mtp_cores
     memory "${params.h_mem} GB"
     publishDir path: output, mode: 'copy'
@@ -114,10 +115,12 @@ process anvi_profile{
   anvi-profile \
   -i ${bam} \
   -c ${contig_db} \
+  --skip-hierarchical-clustering \
   --min-contig-length ${params.min_contig} \
   --output-dir $sample \
   --num-threads ${params.mtp_cores} \
-  --sample-name $sample
+  --sample-name $sample \
+  --skip-hierarchical-clustering
     
 """
 
@@ -147,7 +150,7 @@ process anvi_merge{
     -o samples_merged \
     -c ${contig_db} \
     --sample-name St_Helena_Bay \
-    --enforce-hierarchical-clustering
+    --skip-hierarchical-clustering
 
 """
 
