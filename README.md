@@ -22,7 +22,7 @@ All tools and dependencies used in this pipeline are listed in the  [videre.yml]
 
 ### Running the pipeline
 
-There are main pipeline scripts are 
+The main pipeline scripts are 
 * [videre.nf](https://github.com/PiscatorX/videre-pipeline/blob/master/videre.nf) is the main nextflow pipeline script for sequence read assembly to generate the metascriptome.   
 * [videre-salmon.nf](https://github.com/PiscatorX/videre-pipeline/blob/master/videre-salmon.nf) is the nextflow script predicting the protein coding regions from the metatranscriptome.
 * [videre-diamond.nf](https://github.com/PiscatorX/videre-pipeline/blob/master/videre-diamond.nf) is for annotating the protein coding regions and assigning taxonomy using the [MMETSP](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1001889) database
