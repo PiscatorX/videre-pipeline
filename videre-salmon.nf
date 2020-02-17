@@ -1,6 +1,5 @@
 #! /usr/bin/env nextflow
 
-<<<<<<< Updated upstream
 /*
  * Copyright (c) 2019, Andrew Ndhlovu.
  *
@@ -18,7 +17,6 @@ output              =  params.output
 //params.queries_path = "Contigs"
 params.queries_path = "/home/andhlovu/MT-contigs"
 query_seq           =  file(params.queries_path)
-=======
 //params.readsbase    = "/home/drewx/Documents/subsample"
 params.readsbase    = "/home/andhlovu/MT-assembly-megahit/videre.Out/sortmerna"
 //params.readsbase    = "/home/andhlovu/subsample"
@@ -30,8 +28,6 @@ params.cdHit_perc   = 0.98
 output              =  params.output
 params.queries_path = "/home/andhlovu/MT-contigs"
 query_seq           = file(params.queries_path)
->>>>>>> Stashed changes
-output              = params.output
 DB_REF		    = params.DB_REF
 params.bowtie_idx   = true
 params.bowtie       = true
@@ -134,12 +130,8 @@ process bowtie_idx{
 
     //echo true
     cpus params.htp_cores
-<<<<<<< Updated upstream
-    memory "${params.l_mem} GB"
-=======
+    memory "${params.l_mem} 
     memory "${params.m_mem} GB"
-    //storeDir "${DB_REF}/Bowtie"
->>>>>>> Stashed changes
     publishDir "${DB_REF}/Bowtie", mode: "copy"
     
     input:
@@ -194,17 +186,12 @@ if (!params.bowtie_idx){
  
 process bowtie2sam{
 
-    //echo true
     tag "${sample}"
     cpus params.htp_cores
-<<<<<<< Updated upstream
-    publishDir "${output}/Bowtie2sam", mode: "copy"
     memory "${params.l_mem} GB"
-=======
-    //storeDir "${output}/Bowtie2sam"
     publishDir "${DB_REF}/Bowtie2sam", mode: "move"
     memory "${params.m_mem} GB"
->>>>>>> Stashed changes
+
 
     input:
         each data from reads3
@@ -257,8 +244,6 @@ process bowtie2sam{
 
 
 
-<<<<<<< Updated upstream
-=======
 
 process salmon_index{
     
@@ -298,7 +283,6 @@ process salmon_index{
 
 
 
->>>>>>> Stashed changes
 process salmon_quant{
     
     //echo  true
