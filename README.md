@@ -12,14 +12,15 @@ The videre pipeline take raw RNA fastq reads and assembles them into a metatrans
 
 ### Nextflow
 
-Nextflow requires Java to to run, for more details follow the details provided here
-1. You will need to run the commands below to get it
- * ``sudo apt-get update``
- * ``sudo apt-get install default``
-2. Now you can download next flow using the following command
- * ``wget -qO- get.nextflow.io | bash``
- * This will generate a ``nextflow`` file which you will have to move to your PATH.
- * Once you have moved the file you can test the installation by running ``nextflow`` in the terminal it should return a help message.  
+Nextflow requires Java to to run, for more details are avialable from [https://www.nextflow.io/](https://www.nextflow.io/)
+
+###  Miniconda
+
+Due to the multiple number of programs required for this pipeline [miniconda](https://docs.conda.io/en/latest/miniconda.html)  is highly recommended for package and environment management. 
+
+###  Tools and dependencies
+
+All tools and dependencies used in this pipeline are listed in the  [videre.yml](https://github.com/PiscatorX/videre-pipeline/blob/master/videre.yml) file. The environment may be created using ``conda env create -f videre.yml``
 
 
 <!-- ### Primerprospector -->
