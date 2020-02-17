@@ -1,6 +1,6 @@
 # Videre 
 
-Videre is a [nexflow](https://www.nextflow.io/) computational pipeline for metatranscriptome data assembly and analysis
+Videre is a [nexflow](https://www.nextflow.io/) computational pipeline for metatranscriptome data assembly and analysis.
 
 ## **Getting Started**
 
@@ -10,7 +10,7 @@ The videre pipeline take raw RNA fastq reads and assembles them into a metatrans
 
 ### Nextflow
 
-Nextflow requires Java to to run, for more details are avialable from [https://www.nextflow.io/](https://www.nextflow.io/)
+Nextflow requires Java to to run more details from [https://www.nextflow.io/](https://www.nextflow.io/)
 
 ###  Miniconda
 
